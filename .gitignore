@@ -1,29 +1,26 @@
-# Secrets & API keys - NEVER commit these
+# Environment secrets
 .env
-*.env
-google_token.json
-google_client_secret.json
-google_oauth_pending.json
-credentials.json
-client_secret*.json
+
+# Database
+*.db
+*.db-journal
+*.db-wal
 
 # Python
 __pycache__/
 *.pyc
-*.pyo
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+*.egg-info/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Temp files
-/tmp/
-*.log
+# Vercel
 .vercel
+
+# TickTick tokens (never commit)
+ticktick_token*
+
+# Task history
+task_history.db
+.codex_prompt.txt

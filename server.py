@@ -18,6 +18,7 @@ from io import BytesIO
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import user_profile
+import ticktick_service
 
 HERMES_HOME = "/Users/wangshiyu/.hermes/profiles/energy-management"
 GAPI = os.path.join(HERMES_HOME, "skills/productivity/google-workspace/scripts/google_api.py")
@@ -73,16 +74,42 @@ def _init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON task_events(event_type)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_events_created ON task_events(created_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+    # ── TickTick migration: add sync columns ──
+    _migrate_columns = [
+        ("ticktick_task_id", "TEXT"),
+        ("ticktick_project_id", "TEXT"),
+        ("sync_provider", "TEXT DEFAULT 'local'"),
+        ("sync_status", "TEXT DEFAULT 'pending'"),
+        ("last_synced_at", "TEXT"),
+        ("sync_error", "TEXT"),
+    ]
+    for col_name, col_def in _migrate_columns:
+        try:
+            c.execute(f"ALTER TABLE tasks ADD COLUMN {col_name} {col_def}")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     conn.commit()
     conn.close()
 
 _init_db()
+
+# ── TickTick service (module-level, shared across requests) ──
+_ticktick_svc = ticktick_service.TickTickService(DB_PATH)
 
 def _db_conn():
     """Get a database connection with row factory."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def _get_task_by_id(task_id):
+    """Get a task dict by ID, or None."""
+    conn = _db_conn()
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return dict(row)
 
 # In-memory cache for repeated queries (task text → analysis result)
 import hashlib
@@ -186,6 +213,12 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self._handle_profile()
         elif self.path.startswith("/api/history/stats"):
             self._handle_history_stats()
+        elif self.path.startswith("/api/ticktick/auth"):
+            self._handle_ticktick_auth()
+        elif self.path.startswith("/api/ticktick/callback"):
+            self._handle_ticktick_callback()
+        elif self.path.startswith("/api/ticktick/status"):
+            self._handle_ticktick_status()
         else:
             self.send_error(404, "Not found")
 
@@ -215,8 +248,29 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self._handle_schedule(data)
         elif self.path == "/api/history/log":
             self._handle_history_log(data)
+        elif self.path == "/api/tasks" and not self.path.startswith("/api/tasks/"):
+            self._handle_task_create(data)
+        elif self.path.startswith("/api/tasks/resync-failed"):
+            self._handle_task_resync_failed(data)
         else:
-            self.send_error(404, "Not found")
+            # Route: /api/tasks/{task_id}/{action}
+            import re as _re
+            task_match = _re.match(r'^/api/tasks/([^/]+)(?:/(complete|resync|update|delete))?$', self.path)
+            if task_match:
+                task_id = task_match.group(1)
+                action = task_match.group(2)
+                if action == "complete":
+                    self._handle_task_complete(task_id, data)
+                elif action == "resync":
+                    self._handle_task_resync(task_id, data)
+                elif action == "update":
+                    self._handle_task_update(task_id, data)
+                elif action == "delete":
+                    self._handle_task_delete(task_id, data)
+                else:
+                    self.send_error(404, "Not found")
+            else:
+                self.send_error(404, "Not found")
 
     def _handle_analyze(self, data):
         text = data.get("text", "").strip()
@@ -1013,6 +1067,398 @@ class BridgeHandler(BaseHTTPRequestHandler):
         profile_text = user_profile.build_profile_summary(DB_PATH, 30)
         return user_profile.inject_profile_into_prompt(base_prompt, profile_text)
 
+    # ── TickTick OAuth handlers ─────────────────────────────────────
+
+    def _handle_ticktick_auth(self):
+        """GET /api/ticktick/auth — return OAuth authorization URL."""
+        auth_url = _ticktick_svc.get_auth_url()
+        self._json_response(200, {"auth_url": auth_url})
+
+    def _handle_ticktick_callback(self):
+        """GET /api/ticktick/callback?code=xxx&state=yyy — exchange code for tokens."""
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        code = params.get("code", [None])[0]
+        state = params.get("state", [None])[0]
+
+        if not code:
+            self.send_response(400)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<h1>Authorization Failed</h1><p>No authorization code received.</p>")
+            return
+
+        if not _ticktick_svc.verify_state(state or ""):
+            self.send_response(400)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<h1>Invalid State</h1><p>CSRF check failed. Please try again.</p>")
+            return
+
+        try:
+            _ticktick_svc.exchange_code(code)
+            # Redirect back to frontend with success flag
+            self.send_response(302)
+            self.send_header("Location", "/index.html?ticktick_connected=true")
+            self.end_headers()
+        except Exception as e:
+            print(f"[TICKTICK] Callback error: {e}", flush=True)
+            self.send_response(500)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(f"<h1>Connection Failed</h1><p>{e}</p>".encode())
+
+    def _handle_ticktick_status(self):
+        """GET /api/ticktick/status — return TickTick connection status."""
+        try:
+            status = _ticktick_svc.get_status()
+            self._json_response(200, status)
+        except Exception as e:
+            self._json_response(200, {"connected": False, "account": None, "error": str(e)})
+
+    # ── Task CRUD with TickTick sync ────────────────────────────────
+
+    def _handle_task_create(self, data):
+        """POST /api/tasks — create task locally + sync to TickTick."""
+        title = data.get("title", "").strip()
+        if not title:
+            self._json_response(400, {"success": False, "message": "Missing: title"})
+            return
+
+        task_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        description = data.get("description", "")
+        category = data.get("category", "")
+        priority = data.get("priority", "")
+        project_name = data.get("projectName", "")
+        scheduled_start = data.get("scheduledStart", "")
+        scheduled_end = data.get("scheduledEnd", "")
+        estimated_duration = data.get("estimatedDurationMinutes")
+
+        # Save to local DB first (always)
+        conn = _db_conn()
+        conn.execute("""
+            INSERT INTO tasks (id, title, category, priority, project_name,
+                               scheduled_start, scheduled_end,
+                               estimated_duration_minutes, status, created_at,
+                               sync_provider, sync_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'ticktick', 'pending')
+        """, (task_id, title, category, priority, project_name,
+              scheduled_start, scheduled_end, estimated_duration, now))
+        conn.commit()
+
+        # Try sync to TickTick
+        warning = None
+        if _ticktick_svc.is_connected():
+            try:
+                # Map category to TickTick project
+                project_id = data.get("ticktickProjectId")
+                if not project_id and project_name:
+                    proj = _ticktick_svc.get_project_by_name(project_name)
+                    if proj:
+                        project_id = proj.get("id")
+
+                # Map priority: P1→5, P2→3, P3→1, P4→0
+                pri_map = {"P1": 5, "P2": 3, "P3": 1, "P4": 0}
+                ticktick_priority = pri_map.get(priority, 0)
+
+                # Format due date
+                due_date = None
+                if scheduled_start:
+                    due_date = scheduled_start
+
+                result = _ticktick_svc.create_task(
+                    title=title,
+                    content=description or "",
+                    project_id=project_id,
+                    due_date=due_date,
+                    priority=ticktick_priority,
+                )
+                ticktick_task_id = result.get("id", "")
+                ticktick_project_id = result.get("projectId", project_id or "")
+
+                conn.execute("""
+                    UPDATE tasks SET
+                        ticktick_task_id = ?,
+                        ticktick_project_id = ?,
+                        sync_status = 'synced',
+                        last_synced_at = ?
+                    WHERE id = ?
+                """, (ticktick_task_id, ticktick_project_id, now, task_id))
+                conn.commit()
+                print(f"[TICKTICK] Task synced: {title[:50]} → {ticktick_task_id}", flush=True)
+            except Exception as e:
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'failed', sync_error = ?
+                    WHERE id = ?
+                """, (str(e), task_id))
+                conn.commit()
+                warning = f"任务已保存到本地，但同步 TickTick 失败: {e}"
+                print(f"[TICKTICK] Sync failed: {e}", flush=True)
+        else:
+            warning = "你还没有连接 TickTick，任务将先保存在本地。"
+
+        conn.close()
+
+        task = _get_task_by_id(task_id)
+        resp = {"success": True, "task": task}
+        if warning:
+            resp["warning"] = warning
+        self._json_response(200, resp)
+
+    def _handle_task_update(self, task_id, data):
+        """POST /api/tasks/{id}/update — update local + sync."""
+        task = _get_task_by_id(task_id)
+        if not task:
+            self._json_response(404, {"success": False, "message": "Task not found"})
+            return
+
+        now = datetime.now().isoformat()
+        conn = _db_conn()
+
+        # Update local fields
+        title = data.get("title", task["title"])
+        conn.execute("""
+            UPDATE tasks SET title = ?, category = ?, priority = ?,
+            project_name = ?, scheduled_start = ?, scheduled_end = ?,
+            estimated_duration_minutes = ?, sync_status = 'pending'
+            WHERE id = ?
+        """, (
+            title,
+            data.get("category", task.get("category", "")),
+            data.get("priority", task.get("priority", "")),
+            data.get("projectName", task.get("project_name", "")),
+            data.get("scheduledStart", task.get("scheduled_start", "")),
+            data.get("scheduledEnd", task.get("scheduled_end", "")),
+            data.get("estimatedDurationMinutes", task.get("estimated_duration_minutes")),
+            task_id,
+        ))
+        conn.commit()
+
+        # Sync to TickTick if connected and has ticktick_task_id
+        warning = None
+        ticktick_task_id = task.get("ticktick_task_id")
+        ticktick_project_id = task.get("ticktick_project_id")
+        if ticktick_task_id and _ticktick_svc.is_connected():
+            try:
+                pri_map = {"P1": 5, "P2": 3, "P3": 1, "P4": 0}
+                _ticktick_svc.update_task(
+                    project_id=ticktick_project_id or "",
+                    task_id=ticktick_task_id,
+                    title=title,
+                    content=data.get("description", ""),
+                    due_date=data.get("scheduledStart"),
+                    priority=pri_map.get(data.get("priority", ""), None),
+                )
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'synced', last_synced_at = ?
+                    WHERE id = ?
+                """, (now, task_id))
+                conn.commit()
+            except Exception as e:
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'failed', sync_error = ?
+                    WHERE id = ?
+                """, (str(e), task_id))
+                conn.commit()
+                warning = f"本地已更新，但同步 TickTick 失败: {e}"
+
+        conn.close()
+        task = _get_task_by_id(task_id)
+        resp = {"success": True, "task": task}
+        if warning:
+            resp["warning"] = warning
+        self._json_response(200, resp)
+
+    def _handle_task_complete(self, task_id, data):
+        """POST /api/tasks/{id}/complete — mark done locally + sync."""
+        task = _get_task_by_id(task_id)
+        if not task:
+            self._json_response(404, {"success": False, "message": "Task not found"})
+            return
+
+        now = datetime.now().isoformat()
+        conn = _db_conn()
+        conn.execute("""
+            UPDATE tasks SET status = 'completed', completed_at = ?, sync_status = 'pending'
+            WHERE id = ?
+        """, (now, task_id))
+        conn.commit()
+
+        warning = None
+        ticktick_task_id = task.get("ticktick_task_id")
+        ticktick_project_id = task.get("ticktick_project_id")
+        if ticktick_task_id and _ticktick_svc.is_connected():
+            try:
+                _ticktick_svc.complete_task(
+                    project_id=ticktick_project_id or "",
+                    task_id=ticktick_task_id,
+                )
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'synced', last_synced_at = ?
+                    WHERE id = ?
+                """, (now, task_id))
+                conn.commit()
+            except Exception as e:
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'failed', sync_error = ?
+                    WHERE id = ?
+                """, (str(e), task_id))
+                conn.commit()
+                warning = f"本地已标记完成，但同步 TickTick 失败: {e}"
+
+        conn.close()
+        task = _get_task_by_id(task_id)
+        resp = {"success": True, "task": task}
+        if warning:
+            resp["warning"] = warning
+        self._json_response(200, resp)
+
+    def _handle_task_delete(self, task_id, data):
+        """POST /api/tasks/{id}/delete — delete from TickTick then local."""
+        task = _get_task_by_id(task_id)
+        if not task:
+            self._json_response(404, {"success": False, "message": "Task not found"})
+            return
+
+        ticktick_task_id = task.get("ticktick_task_id")
+        ticktick_project_id = task.get("ticktick_project_id")
+
+        # Try TickTick delete first if synced
+        if ticktick_task_id and _ticktick_svc.is_connected():
+            try:
+                _ticktick_svc.delete_task(
+                    project_id=ticktick_project_id or "",
+                    task_id=ticktick_task_id,
+                )
+                print(f"[TICKTICK] Task deleted: {ticktick_task_id}", flush=True)
+            except Exception as e:
+                # TickTick delete failed → keep local task (方案 A)
+                print(f"[TICKTICK] Delete failed: {e}", flush=True)
+                self._json_response(200, {
+                    "success": True,
+                    "warning": f"TickTick 删除失败（本地任务保留）: {e}",
+                    "task": task,
+                })
+                return
+
+        # Delete locally
+        conn = _db_conn()
+        conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        conn.execute("DELETE FROM task_events WHERE task_id = ?", (task_id,))
+        conn.commit()
+        conn.close()
+        self._json_response(200, {"success": True, "message": "Task deleted"})
+
+    def _handle_task_resync(self, task_id, data):
+        """POST /api/tasks/{id}/resync — retry sync for a failed task."""
+        task = _get_task_by_id(task_id)
+        if not task:
+            self._json_response(404, {"success": False, "message": "Task not found"})
+            return
+
+        if not _ticktick_svc.is_connected():
+            self._json_response(400, {"success": False, "message": "TickTick 未连接，请先授权"})
+            return
+
+        now = datetime.now().isoformat()
+        conn = _db_conn()
+
+        ticktick_task_id = task.get("ticktick_task_id")
+        warning = None
+
+        try:
+            pri_map = {"P1": 5, "P2": 3, "P3": 1, "P4": 0}
+            ticktick_priority = pri_map.get(task.get("priority", ""), 0)
+
+            if not ticktick_task_id:
+                # Never synced → create on TickTick
+                project_name = task.get("project_name", "")
+                project_id = None
+                if project_name:
+                    proj = _ticktick_svc.get_project_by_name(project_name)
+                    if proj:
+                        project_id = proj.get("id")
+
+                result = _ticktick_svc.create_task(
+                    title=task["title"],
+                    content="",
+                    project_id=project_id,
+                    due_date=task.get("scheduled_start"),
+                    priority=ticktick_priority,
+                )
+                ticktick_task_id = result.get("id", "")
+                ticktick_project_id = result.get("projectId", project_id or "")
+                conn.execute("""
+                    UPDATE tasks SET
+                        ticktick_task_id = ?,
+                        ticktick_project_id = ?,
+                        sync_status = 'synced',
+                        last_synced_at = ?,
+                        sync_error = NULL
+                    WHERE id = ?
+                """, (ticktick_task_id, ticktick_project_id, now, task_id))
+            else:
+                # Already linked → update on TickTick
+                _ticktick_svc.update_task(
+                    project_id=task.get("ticktick_project_id", ""),
+                    task_id=ticktick_task_id,
+                    title=task["title"],
+                    due_date=task.get("scheduled_start"),
+                    priority=ticktick_priority,
+                )
+                conn.execute("""
+                    UPDATE tasks SET sync_status = 'synced', last_synced_at = ?,
+                    sync_error = NULL WHERE id = ?
+                """, (now, task_id))
+
+            conn.commit()
+        except Exception as e:
+            conn.execute("""
+                UPDATE tasks SET sync_status = 'failed', sync_error = ?
+                WHERE id = ?
+            """, (str(e), task_id))
+            conn.commit()
+            warning = f"重新同步失败: {e}"
+
+        conn.close()
+        task = _get_task_by_id(task_id)
+        resp = {"success": True, "task": task}
+        if warning:
+            resp["warning"] = warning
+        self._json_response(200, resp)
+
+    def _handle_task_resync_failed(self, data):
+        """POST /api/tasks/resync-failed — retry all failed syncs."""
+        if not _ticktick_svc.is_connected():
+            self._json_response(400, {"success": False, "message": "TickTick 未连接"})
+            return
+
+        conn = _db_conn()
+        failed = conn.execute(
+            "SELECT id FROM tasks WHERE sync_status = 'failed'"
+        ).fetchall()
+        conn.close()
+
+        results = []
+        for row in failed:
+            tid = row["id"]
+            # Simulate a resync call
+            try:
+                task = _get_task_by_id(tid)
+                if task:
+                    self._handle_task_resync(tid, {})
+                    results.append({"task_id": tid, "status": "retried"})
+            except Exception as e:
+                results.append({"task_id": tid, "status": "error", "error": str(e)})
+
+        self._json_response(200, {
+            "success": True,
+            "retried": len(results),
+            "results": results,
+        })
+
     def _json_response(self, code, data):
         self.send_response(code)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -1034,7 +1480,12 @@ def main():
     print(f"   POST /api/history/log   — Task lifecycle event logging 🆕")
     print(f"   GET  /api/profile       — User profile summary (学习画像) 🆕")
     print(f"   GET  /api/history/stats — Detailed task history stats 🆕")
+    print(f"   GET  /api/ticktick/auth   — TickTick OAuth authorization URL")
+    print(f"   GET  /api/ticktick/callback — TickTick OAuth callback")
+    print(f"   GET  /api/ticktick/status — TickTick connection status")
+    ticktick_status = "connected" if _ticktick_svc.is_connected() else "not connected"
     print(f"   DeepSeek API: {'✅ configured' if DEEPSEEK_API_KEY else '❌ not found (keyword fallback)'}")
+    print(f"   TickTick API: {'✅ ' + ticktick_status if _ticktick_svc.is_connected() else '⚠️ ' + ticktick_status + ' (set TICKTICK_CLIENT_ID in .env)'}")
     HTTPServer(("localhost", PORT), BridgeHandler).serve_forever()
 
 if __name__ == "__main__":
