@@ -284,12 +284,89 @@ input[type="color"]{
   background:var(--green-light);border-radius:12px;
   font-size:11px;color:#1a7d36;font-weight:500;
 }
+
+/* ===== Local Calendar Board ===== */
+.board-shell{
+  max-width:1200px;margin:0 auto 40px;padding:0 20px;
+}
+.board-toolbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.board-toolbar .spacer{flex:1}
+.board-title{
+  font-size:26px;font-weight:750;letter-spacing:-0.4px;
+}
+.board-action{
+  padding:7px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--card-bg);color:var(--text);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all var(--transition);
+}
+.board-action:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.board-grid{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--border);border-left:1px solid var(--border);
+}
+.board-weekday{
+  padding:10px 8px;font-size:12px;font-weight:700;color:var(--text-tertiary);
+  text-align:center;border-right:1px solid var(--border);background:#fbfbfd;
+}
+.board-day{
+  min-height:150px;background:var(--card-bg);
+  padding:10px;display:flex;flex-direction:column;gap:6px;
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  border-radius:0;
+}
+.board-day.today{background:#f4f7ff}
+.board-day.out-month{background:#fafafa;color:var(--text-tertiary)}
+.board-day-head{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  font-size:13px;font-weight:700;color:var(--text);
+}
+.board-day.today .board-day-number{
+  min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#4f6df5;color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.board-day-date{font-size:11px;font-weight:500;color:#c7c7cc}
+.board-task{
+  background:#dfe5ff;border-left:none;
+  border-radius:5px;padding:3px 6px;box-shadow:none;
+  display:flex;align-items:center;gap:5px;min-height:23px;
+  position:relative;cursor:default;
+}
+.board-task.p1{background:#df827d;color:#40110f}
+.board-task.p2{background:#f4d3a5;color:#4b2d00}
+.board-task.p3{background:#f3e8a8;color:#4a4000}
+.board-task.p4{background:#d8d8de;color:#333}
+.board-task.done{opacity:.62}
+.board-task-time{font-size:11px;font-weight:700;color:inherit;opacity:.75;white-space:nowrap}
+.board-task-title{font-size:12px;font-weight:650;line-height:1.2;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-task-meta{display:none}
+.board-task-actions{
+  display:none;gap:6px;position:absolute;left:4px;right:4px;top:24px;
+  background:rgba(255,255,255,.96);padding:4px;border-radius:7px;
+  box-shadow:var(--shadow);z-index:3;
+}
+.board-task:hover .board-task-actions{display:flex}
+.board-mini-btn{
+  flex:1;border:none;border-radius:6px;padding:5px 6px;font-size:10px;font-weight:700;
+  background:var(--gray-light);color:var(--text-secondary);cursor:pointer;
+}
+.board-mini-btn:hover{background:var(--blue-light);color:var(--blue)}
+.board-empty{
+  margin:auto;text-align:center;color:var(--text-tertiary);font-size:12px;line-height:1.5;
+  padding:18px 6px;
+}
 @media (max-width:900px){
   .container{grid-template-columns:1fr;padding:16px}
   .preview-panel{position:static}
   .header{padding:16px 20px}
   .header h1{font-size:18px}
   .priority-grid{grid-template-columns:1fr 1fr}
+  .board-shell{padding:0 16px 28px}
+  .board-title{font-size:20px}
+  .board-grid{min-width:760px}
+  .panel-body.board-scroll{overflow-x:auto;padding:0}
+  .board-weekday{min-width:108px}
+  .board-day{min-width:108px;min-height:124px}
 }
 @media (max-width:480px){
   .priority-grid{grid-template-columns:1fr}
@@ -303,8 +380,8 @@ input[type="color"]{
 <!-- ========== Header ========== -->
 <header class="header">
   <h1>📅 个人智能日程规划助手</h1>
-  <p class="subtitle">把碎片任务变成清晰的时间规划</p>
-  <p class="tagline">输入一句任务，系统帮你判断是否完整、选择等级、分类项目，并生成日程预览。</p>
+  <p class="subtitle">把碎片任务变成站内月历看板</p>
+  <p class="tagline">输入一句任务，系统帮你判断是否完整、选择等级、分类项目，并加入自己的日历看板。</p>
 </header>
 
 <!-- ========== Main Container ========== -->
@@ -335,7 +412,7 @@ input[type="color"]{
       <div class="panel-header">
         <span class="icon">📋</span> AI 提取的任务（<span id="extractedTaskCount">0</span>个）
         <button onclick="runSmartSchedule()" style="margin-left:auto;margin-right:6px;padding:6px 14px;font-size:12px;font-weight:600;border:1px solid var(--purple);border-radius:8px;background:var(--purple-light);color:var(--purple);cursor:pointer">🧠 智能排班</button>
-        <button onclick="batchWriteAll()" id="batchWriteBtn" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer">📅 全部写入日历</button>
+        <button onclick="batchWriteAll()" id="batchWriteBtn" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer">📌 全部加入看板</button>
       </div>
       <div class="panel-body" id="extractedTasksList">
         <div class="empty-state"><p>上传文件后 AI 会自动拆解任务</p></div>
@@ -474,7 +551,7 @@ input[type="color"]{
         <div class="missing-list" id="missingFieldsContainer" style="display:none"></div>
 
         <button class="calendar-btn" id="calendarBtn" disabled onclick="writeToCalendar()">
-          📅 确认写入 Google Calendar
+          📌 加入日历看板
         </button>
         <div id="calendarMsg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:12px;text-align:center"></div>
       </div>
@@ -489,12 +566,12 @@ input[type="color"]{
       <div class="panel-body" id="scheduleContent">
         <div class="empty-state">
           <div class="emoji">📋</div>
-          <p>上传课表/任务文件后<br>AI 会分析你的日历空闲时段<br>自动生成最佳排版方案</p>
+          <p>上传课表/任务文件后<br>AI 会根据任务信息<br>自动生成站内排班方案</p>
         </div>
       </div>
       <div style="padding:0 20px 16px">
         <button class="calendar-btn" id="scheduleWriteAllBtn" onclick="writeScheduledAll()" style="display:none">
-          📅 确认全部写入 Google Calendar
+          📌 确认全部加入看板
         </button>
         <div id="scheduleMsg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:12px;text-align:center"></div>
       </div>
@@ -517,6 +594,25 @@ input[type="color"]{
   </div>
 
 </div>
+
+<!-- ========== Local Calendar Board ========== -->
+<section class="board-shell">
+  <div class="panel">
+    <div class="panel-header board-toolbar">
+      <span class="icon">🗓️</span>
+      <span class="board-title" id="boardTitle">我的日历看板</span>
+      <span class="spacer"></span>
+      <button class="board-action" onclick="createQuickBoardTask()">＋</button>
+      <button class="board-action" onclick="shiftBoardMonth(-1)">‹</button>
+      <button class="board-action" onclick="goBoardToday()">Today</button>
+      <button class="board-action" onclick="shiftBoardMonth(1)">›</button>
+    </div>
+    <div class="panel-body board-scroll">
+      <div id="boardRange" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px"></div>
+      <div class="board-grid" id="calendarBoard"></div>
+    </div>
+  </div>
+</section>
 
 <script>
 // ==================== State ====================
@@ -547,6 +643,205 @@ const priorityStyles = {
   'P3': { cls: 'p3', label: '紧急但不重要' },
   'P4': { cls: 'p4', label: '不紧急且不重要' },
 };
+
+// ==================== Local Calendar Board ====================
+const BOARD_STORAGE_KEY = 'calendarAssistant.boardTasks.v1';
+let boardMonthDate = new Date();
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function toDateISO(date) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function loadBoardTasks() {
+  try {
+    return JSON.parse(localStorage.getItem(BOARD_STORAGE_KEY) || '[]');
+  } catch (err) {
+    console.warn('[BOARD] Failed to read localStorage:', err.message);
+    return [];
+  }
+}
+
+function saveBoardTasks(tasks) {
+  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(tasks));
+}
+
+function buildBoardTask(data) {
+  const dateISO = data.dateISO || (data.date ? toDateISO(data.date) : '');
+  const startTime = data.startTime || '09:00';
+  let endTime = data.endTime || '';
+
+  if (!endTime && data.durationMinutes) {
+    const [h, m] = startTime.split(':').map(Number);
+    const total = h * 60 + m + Number(data.durationMinutes);
+    endTime = pad2(Math.floor(total / 60) % 24) + ':' + pad2(total % 60);
+  }
+
+  return {
+    id: data.id || crypto.randomUUID(),
+    title: data.title || '未命名任务',
+    dateISO,
+    startTime,
+    endTime,
+    durationMinutes: data.durationMinutes || null,
+    category: data.category || '',
+    priority: data.priority || 'P2',
+    priorityLabel: data.priorityLabel || priorityStyles[data.priority || 'P2']?.label || '',
+    projectName: data.projectName || '',
+    projectColor: data.projectColor || categoryColors[data.category] || '#0071e3',
+    location: data.location || '',
+    reason: data.reason || '',
+    done: Boolean(data.done),
+    createdAt: data.createdAt || new Date().toISOString(),
+  };
+}
+
+function addTaskToBoard(taskData) {
+  const task = buildBoardTask(taskData);
+  if (!task.dateISO) {
+    alert('这个任务缺少日期，暂时不能加入看板');
+    return null;
+  }
+
+  const tasks = loadBoardTasks();
+  tasks.push(task);
+  tasks.sort((a, b) => (a.dateISO + a.startTime).localeCompare(b.dateISO + b.startTime));
+  saveBoardTasks(tasks);
+  boardMonthDate = new Date(task.dateISO + 'T00:00:00');
+  renderCalendarBoard();
+  return task;
+}
+
+function removeBoardTask(id) {
+  saveBoardTasks(loadBoardTasks().filter(task => task.id !== id));
+  renderCalendarBoard();
+}
+
+async function toggleBoardTask(id) {
+  const tasks = loadBoardTasks();
+  const task = tasks.find(item => item.id === id);
+  if (!task) return;
+  task.done = !task.done;
+  saveBoardTasks(tasks);
+  renderCalendarBoard();
+  if (task.done) {
+    await logTaskEvent('task_completed', {
+      taskId: task.id,
+      title: task.title,
+      actualDurationMinutes: task.durationMinutes,
+    });
+  }
+}
+
+function shiftBoardMonth(delta) {
+  boardMonthDate = new Date(boardMonthDate.getFullYear(), boardMonthDate.getMonth() + delta, 1);
+  renderCalendarBoard();
+}
+
+function goBoardToday() {
+  boardMonthDate = new Date();
+  renderCalendarBoard();
+}
+
+function createQuickBoardTask() {
+  const title = prompt('任务标题');
+  if (!title) return;
+  const today = new Date();
+  const dateISO = prompt('日期（YYYY-MM-DD）', toDateISO(today));
+  if (!dateISO) return;
+  const startTime = prompt('开始时间（HH:MM）', '09:00') || '09:00';
+  addTaskToBoard({
+    title,
+    dateISO,
+    startTime,
+    endTime: '',
+    category: '提醒',
+    priority: 'P2',
+    projectName: '手动添加',
+  });
+}
+
+function renderCalendarBoard() {
+  const board = document.getElementById('calendarBoard');
+  const range = document.getElementById('boardRange');
+  const title = document.getElementById('boardTitle');
+  if (!board || !range) return;
+
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const tasks = loadBoardTasks();
+  const todayISO = toDateISO(new Date());
+
+  const firstOfMonth = new Date(boardMonthDate.getFullYear(), boardMonthDate.getMonth(), 1);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(firstOfMonth.getDate() - firstOfMonth.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    return d;
+  });
+
+  if (title) {
+    title.textContent = `${boardMonthDate.toLocaleString('en-US', { month: 'long' })} ${boardMonthDate.getFullYear()}`;
+  }
+  range.textContent = `站内保存 · 共 ${tasks.length} 个任务 · 数据保存在当前浏览器`;
+
+  const weekdayHtml = weekdays.map(day => `<div class="board-weekday">${day}</div>`).join('');
+  const dayHtml = days.map((day) => {
+    const iso = toDateISO(day);
+    const inMonth = day.getMonth() === boardMonthDate.getMonth();
+    const dayTasks = tasks
+      .filter(task => task.dateISO === iso)
+      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+    const taskHtml = dayTasks.length
+      ? dayTasks.map(task => {
+          const priCls = (task.priority || 'P2').toLowerCase();
+          const time = task.endTime ? task.endTime : task.startTime;
+          return `<div class="board-task ${priCls} ${task.done ? 'done' : ''}" title="${escapeHtml(task.title)}">
+            <div class="board-task-title">${task.done ? '✓ ' : ''}${escapeHtml(task.title)}</div>
+            <div class="board-task-time">${escapeHtml(time || '')}</div>
+            <div class="board-task-meta">
+              ${task.category ? escapeHtml(task.category) : '未分类'}
+              ${task.projectName ? ' · ' + escapeHtml(task.projectName) : ''}
+              ${task.location ? '<br>📍 ' + escapeHtml(task.location) : ''}
+              ${task.reason ? '<br>💡 ' + escapeHtml(task.reason) : ''}
+            </div>
+            <div class="board-task-actions">
+              <button class="board-mini-btn" onclick="toggleBoardTask('${task.id}')">${task.done ? '恢复' : '完成'}</button>
+              <button class="board-mini-btn" onclick="removeBoardTask('${task.id}')">删除</button>
+            </div>
+          </div>`;
+        }).join('')
+      : '';
+
+    return `<div class="board-day ${iso === todayISO ? 'today' : ''} ${inMonth ? '' : 'out-month'}">
+      <div class="board-day-head">
+        <span class="board-day-number">${day.getDate()}</span>
+        <span class="board-day-date">${inMonth ? '' : day.toLocaleString('en-US', { month: 'short' })}</span>
+      </div>
+      ${taskHtml}
+    </div>`;
+  }).join('');
+
+  board.innerHTML = weekdayHtml + dayHtml;
+}
 
 // ==================== Priority Selection ====================
 function setPriority(btn) {
@@ -741,10 +1036,22 @@ function parseTask(text) {
 
   // --- Duration detection ---
   const durMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:个)?(小时|分钟|min|hour|h)/i);
+  const cnDurMatch = text.match(/([零一二两三四五六七八九十]+)\s*(?:个)?(小时|分钟)/);
   const halfHour = text.match(/半\s*(?:个)?\s*(小时|钟头)/);
   if (halfHour) {
     result.duration = 30;
     result.durationStr = '30 分钟';
+  } else if (cnDurMatch) {
+    const val = cnToNum(cnDurMatch[1]);
+    if (val) {
+      if (cnDurMatch[2] === '小时') {
+        result.duration = val * 60;
+        result.durationStr = val + ' 小时';
+      } else {
+        result.duration = val;
+        result.durationStr = val + ' 分钟';
+      }
+    }
   } else if (durMatch) {
     let val = parseFloat(durMatch[1]);
     const unit = durMatch[2].toLowerCase();
@@ -989,7 +1296,7 @@ async function analyzeTask(silent = false) {
       if (parsed.isReadyForCalendar) {
         badge.classList.add('status-ok');
         const src = parsed.aiSource === 'keyword' ? '（离线解析）' : parsed.aiSource === 'cached' ? '（缓存）' : '';
-        stText.textContent = `✅ 可以写入 Google Calendar ${src}`;
+        stText.textContent = `✅ 可以加入日历看板 ${src}`;
       } else {
         badge.classList.add('status-warning');
         stText.textContent = '⚠️ 信息不完整，需要补充';
@@ -1020,7 +1327,7 @@ function updatePreview() {
   badge.className = 'status-badge';
   if (parsed.isReadyForCalendar) {
     badge.classList.add('status-ok');
-    statusText.textContent = '✅ 可以写入 Google Calendar';
+    statusText.textContent = '✅ 可以加入日历看板';
   } else {
     badge.classList.add('status-warning');
     statusText.textContent = '⚠️ 信息不完整，需要补充';
@@ -1156,91 +1463,44 @@ async function writeToCalendar() {
   const btn = document.getElementById('calendarBtn');
   const msg = document.getElementById('calendarMsg');
 
-  // Build ISO 8601 datetime strings (UTC+8 = Asia/Shanghai)
-  const offset = '+08:00';
-  const date = parsed.date;
-  const startTime = parsed.startTime || '09:00';
-  const endTime = parsed.endTime;
-
-  // Format date as YYYY-MM-DD
-  const pad = (n) => String(n).padStart(2, '0');
-  const dateStr = date.getFullYear() + '-' + pad(date.getMonth()+1) + '-' + pad(date.getDate());
-
-  const startDt = dateStr + 'T' + startTime + ':00' + offset;
-
-  // Calculate end time
-  let endDt;
-  if (endTime) {
-    endDt = dateStr + 'T' + endTime + ':00' + offset;
-  } else if (parsed.duration) {
-    const [sh, sm] = startTime.split(':').map(Number);
-    const totalMins = sh * 60 + sm + parsed.duration;
-    const eh = Math.floor(totalMins / 60);
-    const em = totalMins % 60;
-    endDt = dateStr + 'T' + pad(eh) + ':' + pad(em) + ':00' + offset;
-  } else {
-    endDt = dateStr + 'T' + '10:00:00' + offset;
-  }
-
-  // Build description
-  const cat = state.category || parsed.suggestedCategory || '';
-  const pri = state.priorityLabel || '未设置';
-  const proj = state.projectName || '';
-  const desc = `分类：${cat}；项目：${proj}；等级：${pri}`;
-
-  // Loading state
   btn.disabled = true;
-  btn.textContent = '⏳ 正在写入...';
+  btn.textContent = '⏳ 正在加入...';
   msg.style.display = 'none';
 
-  const payload = {
-    summary: parsed.taskTitle,
-    start: startDt,
-    end: endDt,
-    description: desc,
+  const task = addTaskToBoard({
+    title: parsed.taskTitle,
+    date: parsed.date,
+    startTime: parsed.startTime || '09:00',
+    endTime: parsed.endTime || '',
+    durationMinutes: parsed.duration,
+    category: state.category || parsed.suggestedCategory || '',
+    priority: state.priority || 'P2',
+    priorityLabel: state.priorityLabel || '',
+    projectName: state.projectName || '',
+    projectColor: state.projectColor,
     location: parsed.location || ''
-  };
-  console.log('[CALENDAR] Sending:', JSON.stringify(payload, null, 2));
+  });
 
-  try {
-    const resp = await fetch('/api/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await resp.json();
-
-    if (resp.ok && data.status === 'created') {
-      // Log task creation to history
-      await logTaskEvent('task_created', {
-        title: parsed.taskTitle,
-        start: startDt,
-        end: endDt,
-        durationMinutes: parsed.duration,
-      });
-      msg.style.display = '';
-      msg.style.background = '#e8f8ed';
-      msg.style.color = '#1a7d36';
-      msg.innerHTML = '✅ 已写入 Google Calendar！<br><a href="' + (data.htmlLink || 'https://calendar.google.com') + '" target="_blank" style="color:#0071e3">📅 在日历中查看</a>';
-      btn.textContent = '✅ 已写入';
-      btn.style.background = 'var(--green)';
-    } else {
-      msg.style.display = '';
-      msg.style.background = '#ffeaea';
-      msg.style.color = 'var(--red)';
-      msg.textContent = '❌ ' + (data.message || '写入失败，请重试');
-      btn.disabled = false;
-      btn.textContent = '📅 重试写入';
-    }
-  } catch (err) {
-    msg.style.display = '';
-    msg.style.background = '#ffeaea';
-    msg.style.color = 'var(--red)';
-    msg.textContent = '❌ 无法连接到日历服务（请确认桥接服务已启动）';
+  if (!task) {
     btn.disabled = false;
-    btn.textContent = '📅 重试写入';
+    btn.textContent = '📌 加入日历看板';
+    return;
   }
+
+  await logTaskEvent('task_created', {
+    taskId: task.id,
+    title: task.title,
+    start: `${task.dateISO}T${task.startTime}`,
+    end: task.endTime ? `${task.dateISO}T${task.endTime}` : '',
+    durationMinutes: task.durationMinutes,
+  });
+
+  msg.style.display = '';
+  msg.style.background = '#e8f8ed';
+  msg.style.color = '#1a7d36';
+  msg.textContent = '✅ 已加入下方日历看板';
+  btn.textContent = '✅ 已加入看板';
+  btn.style.background = 'var(--green)';
 }
 
 // ==================== Clear All ====================
@@ -1392,7 +1652,7 @@ function renderExtractedTasks() {
     const emoji = categoryEmoji[cat] || '';
     const loc = t.location ? '📍 ' + t.location : '';
     const reason = t.reason ? '💡 ' + t.reason : '';
-    const written = t._written ? '✅ 已写入' : '';
+    const written = t._written ? '✅ 已加入' : '';
 
     html += `<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
   <div style="flex:1;min-width:0">
@@ -1406,7 +1666,7 @@ function renderExtractedTasks() {
   ${written
     ? `<span style="font-size:12px;color:#1a7d36;font-weight:600;white-space:nowrap">${written}</span>
        <button onclick="completeTask('${t._taskId || ''}', ${i}, this)" style="margin-left:6px;padding:6px 12px;font-size:11px;font-weight:600;border:none;border-radius:6px;background:${t._completed ? 'var(--green)' : 'var(--gray-light)'};color:${t._completed ? '#fff' : 'var(--text-secondary)'};cursor:${t._completed ? 'default' : 'pointer'};white-space:nowrap">${t._completed ? '✅ 已完成' : '✔ 完成'}</button>`
-    : `<button onclick="writeSingleTask(${i}, this)" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer;white-space:nowrap">📅 写入</button>`
+    : `<button onclick="writeSingleTask(${i}, this)" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer;white-space:nowrap">📌 加入看板</button>`
   }
 </div>`;
   });
@@ -1417,113 +1677,78 @@ function renderExtractedTasks() {
 async function writeSingleTask(index, btn) {
   const t = _extractedTasks[index];
   if (!t || !t.dateISO || !t.startTime) {
-    alert('该任务缺少日期或时间，无法写入');
+    alert('该任务缺少日期或时间，无法加入看板');
     return;
   }
 
   btn.disabled = true;
   btn.textContent = '⏳...';
 
-  const offset = '+08:00';
-  const startDt = t.dateISO + 'T' + (t.startTime || '09:00') + ':00' + offset;
-  let endDt;
-  if (t.endTime) {
-    endDt = t.dateISO + 'T' + t.endTime + ':00' + offset;
-  } else {
-    // Default 1 hour
-    const [h, m] = (t.startTime || '09:00').split(':').map(Number);
-    const eh = h + 1;
-    endDt = t.dateISO + 'T' + String(eh).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00' + offset;
-  }
-
-  const payload = {
-    summary: t.title || '任务',
-    start: startDt,
-    end: endDt,
-    description: `分类：${t.category||''}；项目：${t.projectName||''}`,
+  const boardTask = addTaskToBoard({
+    title: t.title || '任务',
+    dateISO: t.dateISO,
+    startTime: t.startTime || '09:00',
+    endTime: t.endTime || '',
+    durationMinutes: t.durationMinutes || null,
+    category: t.category || '',
+    priority: t.priority || 'P2',
+    projectName: t.projectName || '',
     location: t.location || ''
-  };
+  });
 
-  try {
-    const resp = await fetch('/api/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+  if (boardTask) {
+    await logTaskEvent('task_created', {
+      taskId: boardTask.id,
+      title: boardTask.title,
+      start: `${boardTask.dateISO}T${boardTask.startTime}`,
+      end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
     });
-    const data = await resp.json();
-    if (resp.ok && data.status === 'created') {
-      // Log task creation to history
-      await logTaskEvent('task_created', {
-        title: t.title,
-        start: startDt,
-        end: endDt,
-      });
-      t._written = true;
-      renderExtractedTasks();
-      // Check if all written
-      if (_extractedTasks.every(x => x._written)) {
-        document.getElementById('batchWriteBtn').textContent = '✅ 全部完成';
-        document.getElementById('batchWriteBtn').style.background = 'var(--green)';
-      }
-    } else {
-      alert('写入失败：' + (data.message || '未知错误'));
-      btn.disabled = false;
-      btn.textContent = '📅 重试';
+    t._written = true;
+    t._taskId = boardTask.id;
+    renderExtractedTasks();
+    if (_extractedTasks.every(x => x._written)) {
+      document.getElementById('batchWriteBtn').textContent = '✅ 全部完成';
+      document.getElementById('batchWriteBtn').style.background = 'var(--green)';
     }
-  } catch (err) {
-    alert('连接失败：' + err.message);
+  } else {
     btn.disabled = false;
-    btn.textContent = '📅 重试';
+    btn.textContent = '📌 重试';
   }
 }
 
 async function batchWriteAll() {
   const pending = _extractedTasks.filter(t => !t._written && t.dateISO && t.startTime);
   if (pending.length === 0) {
-    alert('所有任务已写入或缺少必要信息');
+    alert('所有任务已加入或缺少必要信息');
     return;
   }
 
   const batchBtn = document.getElementById('batchWriteBtn');
   batchBtn.disabled = true;
-  batchBtn.textContent = '⏳ 写入中...';
+  batchBtn.textContent = '⏳ 加入中...';
 
   for (const t of pending) {
-    const offset = '+08:00';
-    const startDt = t.dateISO + 'T' + (t.startTime || '09:00') + ':00' + offset;
-    let endDt;
-    if (t.endTime) {
-      endDt = t.dateISO + 'T' + t.endTime + ':00' + offset;
-    } else {
-      const [h, m] = (t.startTime || '09:00').split(':').map(Number);
-      endDt = t.dateISO + 'T' + String(h+1).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00' + offset;
-    }
-
-    try {
-      const resp = await fetch('/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary: t.title || '任务',
-          start: startDt,
-          end: endDt,
-          description: `分类：${t.category||''}；项目：${t.projectName||''}`,
-          location: t.location || ''
-        })
+    const boardTask = addTaskToBoard({
+      title: t.title || '任务',
+      dateISO: t.dateISO,
+      startTime: t.startTime || '09:00',
+      endTime: t.endTime || '',
+      durationMinutes: t.durationMinutes || null,
+      category: t.category || '',
+      priority: t.priority || 'P2',
+      projectName: t.projectName || '',
+      location: t.location || ''
+    });
+    if (boardTask) {
+      await logTaskEvent('task_created', {
+        taskId: boardTask.id,
+        title: boardTask.title,
+        start: `${boardTask.dateISO}T${boardTask.startTime}`,
+        end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
       });
-      const data = await resp.json();
-      if (resp.ok && data.status === 'created') {
-        // Log task creation to history
-        await logTaskEvent('task_created', {
-          title: t.title,
-          start: startDt,
-          end: endDt,
-        });
-        t._written = true;
-        renderExtractedTasks();
-      }
-    } catch (err) {
-      console.error('[BATCH] Failed:', t.title, err);
+      t._written = true;
+      t._taskId = boardTask.id;
+      renderExtractedTasks();
     }
   }
 
@@ -1681,8 +1906,8 @@ function renderSchedule() {
           ${item.durationMinutes ? `<div class="schedule-cat">⏱ ${item.durationMinutes}分钟</div>` : ''}
         </div>
         ${item._written
-          ? `<button class="schedule-write-btn written">✅ 已写入</button>`
-          : `<button class="schedule-write-btn" onclick="writeScheduledItem(${_scheduleData.indexOf(item)}, this)">📅 写入</button>`
+          ? `<button class="schedule-write-btn written">✅ 已加入</button>`
+          : `<button class="schedule-write-btn" onclick="writeScheduledItem(${_scheduleData.indexOf(item)}, this)">📌 加入</button>`
         }
       </div>`;
     });
@@ -1703,76 +1928,70 @@ async function writeScheduledItem(index, btn) {
   btn.disabled = true;
   btn.textContent = '⏳...';
 
-  const offset = '+08:00';
-  const startDt = item.suggestedDate + 'T' + (item.suggestedStart || '09:00') + ':00' + offset;
-  const endDt = item.suggestedDate + 'T' + (item.suggestedEnd || '10:00') + ':00' + offset;
+  const boardTask = addTaskToBoard({
+    title: item.title || '任务',
+    dateISO: item.suggestedDate,
+    startTime: item.suggestedStart || '09:00',
+    endTime: item.suggestedEnd || '',
+    durationMinutes: item.durationMinutes || null,
+    category: item._originalTask?.category || '',
+    priority: item._originalTask?.priority || 'P2',
+    projectName: 'AI 智能排班',
+    reason: item.reason || ''
+  });
 
-  try {
-    const resp = await fetch('/api/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary: item.title || '任务',
-        start: startDt,
-        end: endDt,
-        description: `AI 智能排班 | ${item.reason || ''}`,
-        location: ''
-      })
+  if (boardTask) {
+    await logTaskEvent('task_created', {
+      taskId: boardTask.id,
+      title: boardTask.title,
+      start: `${boardTask.dateISO}T${boardTask.startTime}`,
+      end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
     });
-    const data = await resp.json();
-    if (resp.ok && data.status === 'created') {
-      item._written = true;
-      btn.className = 'schedule-write-btn written';
-      btn.textContent = '✅ 已写入';
-      btn.disabled = true;
-      // Check if all done
-      if (_scheduleData.every(s => s._written)) {
-        document.getElementById('scheduleWriteAllBtn').textContent = '✅ 全部完成';
-        document.getElementById('scheduleWriteAllBtn').style.background = 'var(--green)';
-      }
-    } else {
-      alert('写入失败：' + (data.message || '未知错误'));
-      btn.disabled = false;
+    item._written = true;
+    btn.className = 'schedule-write-btn written';
+    btn.textContent = '✅ 已加入';
+    btn.disabled = true;
+    if (_scheduleData.every(s => s._written)) {
+      document.getElementById('scheduleWriteAllBtn').textContent = '✅ 全部完成';
+      document.getElementById('scheduleWriteAllBtn').style.background = 'var(--green)';
     }
-  } catch (err) {
-    alert('连接失败：' + err.message);
+  } else {
     btn.disabled = false;
+    btn.textContent = '📌 重试';
   }
 }
 
 async function writeScheduledAll() {
   const pending = _scheduleData.filter(s => !s._written && s.suggestedDate && s.suggestedStart);
   if (pending.length === 0) {
-    alert('所有任务已写入或缺少必要信息');
+    alert('所有任务已加入或缺少必要信息');
     return;
   }
 
   const btn = document.getElementById('scheduleWriteAllBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 写入中...';
+  btn.textContent = '⏳ 加入中...';
 
   for (const item of pending) {
-    const offset = '+08:00';
-    const startDt = item.suggestedDate + 'T' + (item.suggestedStart || '09:00') + ':00' + offset;
-    const endDt = item.suggestedDate + 'T' + (item.suggestedEnd || '10:00') + ':00' + offset;
-    try {
-      const resp = await fetch('/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary: item.title || '任务',
-          start: startDt,
-          end: endDt,
-          description: `AI 智能排班 | ${item.reason || ''}`,
-          location: ''
-        })
+    const boardTask = addTaskToBoard({
+      title: item.title || '任务',
+      dateISO: item.suggestedDate,
+      startTime: item.suggestedStart || '09:00',
+      endTime: item.suggestedEnd || '',
+      durationMinutes: item.durationMinutes || null,
+      category: item._originalTask?.category || '',
+      priority: item._originalTask?.priority || 'P2',
+      projectName: 'AI 智能排班',
+      reason: item.reason || ''
+    });
+    if (boardTask) {
+      await logTaskEvent('task_created', {
+        taskId: boardTask.id,
+        title: boardTask.title,
+        start: `${boardTask.dateISO}T${boardTask.startTime}`,
+        end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
       });
-      const data = await resp.json();
-      if (resp.ok && data.status === 'created') {
-        item._written = true;
-      }
-    } catch (err) {
-      console.error('[SCHEDULE] Write failed:', item.title, err);
+      item._written = true;
     }
   }
 
@@ -1871,6 +2090,7 @@ async function loadProfile() {
 }
 
 // Auto-load profile on page load
+renderCalendarBoard();
 setTimeout(loadProfile, 1500);
 </script>
 
