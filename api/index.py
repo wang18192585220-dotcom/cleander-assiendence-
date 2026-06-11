@@ -371,153 +371,6 @@ def _keyword_analyze(text):
     }
 
 
-def _parse_date_from_text(text):
-    """Best-effort date parser for OCR fallback extraction."""
-    now = datetime.now()
-    m = re.search(r"(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})", text)
-    if m:
-        return f"{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-
-    m = re.search(r"(?<![:\d])(\d{1,2})[月/](\d{1,2})(?:[日号])?", text)
-    if m:
-        year = now.year
-        month = int(m.group(1))
-        day = int(m.group(2))
-        try:
-            candidate = datetime(year, month, day)
-            if candidate.date() < now.date():
-                candidate = datetime(year + 1, month, day)
-            return candidate.strftime("%Y-%m-%d")
-        except ValueError:
-            return None
-
-    weekdays = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
-    m = re.search(r"(?:周|星期)([一二三四五六日天])", text)
-    if m:
-        target = weekdays[m.group(1)]
-        diff = (target - now.weekday()) % 7
-        if diff == 0:
-            diff = 7
-        return (now + timedelta(days=diff)).strftime("%Y-%m-%d")
-
-    if "今天" in text:
-        return now.strftime("%Y-%m-%d")
-    if "明天" in text:
-        return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    if "后天" in text:
-        return (now + timedelta(days=2)).strftime("%Y-%m-%d")
-    return None
-
-
-def _parse_time_from_text(text):
-    """Best-effort time parser for OCR fallback extraction."""
-    range_match = re.search(r"(\d{1,2})[:：](\d{2})\s*[-~—到至]\s*(\d{1,2})[:：](\d{2})", text)
-    if range_match:
-        return (
-            f"{int(range_match.group(1)):02d}:{int(range_match.group(2)):02d}",
-            f"{int(range_match.group(3)):02d}:{int(range_match.group(4)):02d}",
-        )
-
-    times = re.findall(r"(?<!\d)(\d{1,2})[:：](\d{2})(?!\d)", text)
-    if times:
-        start = f"{int(times[0][0]):02d}:{int(times[0][1]):02d}"
-        end = f"{int(times[1][0]):02d}:{int(times[1][1]):02d}" if len(times) > 1 else None
-        return start, end
-
-    m = re.search(r"(上午|早上|中午|下午|晚上)?\s*(\d{1,2})\s*点\s*(半)?", text)
-    if m:
-        hour = int(m.group(2))
-        if m.group(1) in ("下午", "晚上") and hour < 12:
-            hour += 12
-        minute = 30 if m.group(3) else 0
-        return f"{hour:02d}:{minute:02d}", None
-    return None, None
-
-
-def _guess_category(text):
-    categories = {
-        "学习": r"课程|课|作业|考试|quiz|final|论文|复习|预习|lecture|tutorial|assignment",
-        "会议": r"会议|讨论|meeting|seminar|小组|group",
-        "工作": r"工作|实习|报告|客户|运营|达人|面试",
-        "内容创作": r"小红书|抖音|TikTok|视频|脚本|剪辑",
-        "生活": r"签证|缴费|购物|租|预约|出行",
-    }
-    for category, pattern in categories.items():
-        if re.search(pattern, text, re.IGNORECASE):
-            return category
-    return "提醒"
-
-
-def _fallback_extract_tasks(text):
-    """Extract rough tasks from OCR text when LLM extraction returns nothing."""
-    raw_lines = [line.strip(" \t|,，。;；") for line in re.split(r"[\r\n]+", text)]
-    lines = [line for line in raw_lines if len(line) >= 2]
-    tasks = []
-    current_date = None
-    seen = set()
-
-    task_keywords = re.compile(
-        r"作业|考试|quiz|final|due|ddl|deadline|课程|课|会议|讨论|提醒|完成|提交|presentation|assignment|lecture|tutorial|seminar|复习|预习|论文|报告",
-        re.IGNORECASE,
-    )
-
-    for line in lines:
-        parsed_date = _parse_date_from_text(line)
-        if parsed_date:
-            current_date = parsed_date
-
-        start_time, end_time = _parse_time_from_text(line)
-        has_keyword = bool(task_keywords.search(line))
-        has_time = bool(start_time)
-        has_date = bool(parsed_date or current_date)
-
-        # Skip tiny date-only or page-noise lines.
-        clean_title = re.sub(r"\s+", " ", line)
-        clean_title = re.sub(r"^\d{1,2}[:：]\d{2}\s*[-~—到至]?\s*(\d{1,2}[:：]\d{2})?\s*", "", clean_title).strip()
-        if len(clean_title) < 2:
-            continue
-
-        if not (has_keyword or (has_date and has_time)):
-            continue
-
-        date_iso = parsed_date or current_date
-        key = (date_iso or "", start_time or "", clean_title[:60])
-        if key in seen:
-            continue
-        seen.add(key)
-
-        tasks.append({
-            "title": clean_title[:80],
-            "dateISO": date_iso,
-            "dateStr": date_iso,
-            "startTime": start_time,
-            "endTime": end_time,
-            "durationMinutes": None,
-            "location": None,
-            "category": _guess_category(clean_title),
-            "projectName": None,
-            "reason": "OCR 兜底提取",
-        })
-
-    # If OCR text is prose-like, return one review task instead of nothing.
-    if not tasks and len(text.strip()) >= 20:
-        first_line = next((line for line in lines if len(line) >= 4), text.strip())
-        tasks.append({
-            "title": first_line[:80],
-            "dateISO": _parse_date_from_text(text),
-            "dateStr": _parse_date_from_text(text),
-            "startTime": _parse_time_from_text(text)[0],
-            "endTime": _parse_time_from_text(text)[1],
-            "durationMinutes": None,
-            "location": None,
-            "category": _guess_category(text),
-            "projectName": None,
-            "reason": "OCR 已识别文字，请手动确认任务信息",
-        })
-
-    return tasks[:30]
-
-
 # ============================================================
 # CORS helper
 # ============================================================
@@ -727,52 +580,57 @@ def api_upload():
             "message": "文件中没有识别出文字内容"
         })
 
-    # AI batch extract
-    fallback_tasks = _fallback_extract_tasks(text)
-    if DEEPSEEK_API_KEY:
-        try:
-            today = time.strftime("%Y-%m-%d")
-            prompt = BATCH_EXTRACT_PROMPT.format(text=text[:6000], today=today)
-            content = _call_deepseek(
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": "请提取所有任务"}
-                ],
-                temperature=0.2,
-                max_tokens=2000,
-                timeout=30,
-            )
-            tasks = _extract_json(content)
-            if not isinstance(tasks, list):
-                tasks = []
-            source = "ai"
-            message = f"共识别 {len(text)} 字，提取 {len(tasks)} 个任务"
-            if not tasks and fallback_tasks:
-                tasks = fallback_tasks
-                source = "ocr_fallback"
-                message = f"AI 未拆出任务，已用 OCR 兜底提取 {len(tasks)} 个候选任务，请确认后加入看板"
-            return _cors_response({
-                "status": "ok", "source": source,
-                "raw_text": text[:5000], "total_chars": len(text),
-                "tasks": tasks,
-                "message": message if tasks else "未能从文档中识别出任务，请尝试裁剪图片只保留任务/课表区域"
-            })
-        except Exception as e:
-            if fallback_tasks:
-                return _cors_response({
-                    "status": "ok", "source": "ocr_fallback",
-                    "raw_text": text[:5000], "total_chars": len(text),
-                    "tasks": fallback_tasks,
-                    "message": f"AI 提取失败，已用 OCR 兜底提取 {len(fallback_tasks)} 个候选任务，请确认后加入看板"
-                })
-            return _cors_response({"status": "error", "message": str(e)}, 500)
-    else:
+    if not DEEPSEEK_API_KEY:
         return _cors_response({
-            "status": "ok", "source": "keyword",
-            "raw_text": text[:5000], "total_chars": len(text),
-            "tasks": fallback_tasks,
-            "message": f"未配置 DeepSeek，已用 OCR 兜底提取 {len(fallback_tasks)} 个候选任务" if fallback_tasks else "OCR 已识别文字，但未拆出任务。建议裁剪图片只保留课表/任务区域，或配置 DeepSeek API Key。"
+            "status": "error",
+            "source": "ocr",
+            "raw_text": text[:5000],
+            "total_chars": len(text),
+            "tasks": [],
+            "message": "OCR 已识别文字，但必须配置 DEEPSEEK_API_KEY 才能解析任务。"
+        }, 500)
+
+    try:
+        today = time.strftime("%Y-%m-%d")
+        prompt = BATCH_EXTRACT_PROMPT.format(text=text[:6000], today=today)
+        content = _call_deepseek(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": "请提取所有任务"}
+            ],
+            temperature=0.1,
+            max_tokens=3000,
+            timeout=30,
+        )
+        tasks = _extract_json(content)
+        if not isinstance(tasks, list):
+            tasks = []
+        if not tasks:
+            return _cors_response({
+                "status": "error",
+                "source": "ai",
+                "raw_text": text[:5000],
+                "total_chars": len(text),
+                "tasks": [],
+                "message": "DeepSeek 未能从 OCR 文字中解析出任务。请裁剪图片只保留课表/任务区域后重试。"
+            }, 422)
+        return _cors_response({
+            "status": "ok",
+            "source": "ai",
+            "raw_text": text[:5000],
+            "total_chars": len(text),
+            "tasks": tasks,
+            "message": f"共识别 {len(text)} 字，DeepSeek 提取 {len(tasks)} 个任务"
         })
+    except Exception as e:
+        return _cors_response({
+            "status": "error",
+            "source": "ai",
+            "raw_text": text[:5000],
+            "total_chars": len(text),
+            "tasks": [],
+            "message": "DeepSeek 解析失败：" + str(e)
+        }, 500)
 
 
 # ============================================================
