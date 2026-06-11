@@ -1,9 +1,11 @@
 """
 Calendar Planner MVP — Vercel Serverless Backend
-Handles: AI analysis (DeepSeek), Google Calendar, file upload
+Handles: AI analysis (DeepSeek), Google Calendar, file upload/OCR
 """
-import json, hashlib, os, re, time, io
+import base64, json, hashlib, os, re, time, io
 from datetime import datetime, timedelta
+from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from flask import Flask, request, jsonify, Response, send_from_directory
@@ -18,6 +20,7 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+GOOGLE_VISION_API_KEY = os.environ.get("GOOGLE_VISION_API_KEY", "")
 
 # ============================================================
 # Prompts (from server.py)
@@ -286,6 +289,55 @@ def _extract_json(content):
     return None
 
 
+def _call_google_vision_ocr(file_data):
+    """Extract text from an image with Google Cloud Vision OCR."""
+    if not GOOGLE_VISION_API_KEY:
+        raise RuntimeError("未配置 GOOGLE_VISION_API_KEY，无法使用图片 OCR")
+    if len(file_data) > 10 * 1024 * 1024:
+        raise RuntimeError("图片太大，请压缩到 10MB 以内后再上传")
+
+    body = {
+        "requests": [
+            {
+                "image": {
+                    "content": base64.b64encode(file_data).decode("ascii")
+                },
+                "features": [
+                    {"type": "DOCUMENT_TEXT_DETECTION"}
+                ],
+                "imageContext": {
+                    "languageHints": ["zh", "en"]
+                }
+            }
+        ]
+    }
+    req = Request(
+        "https://vision.googleapis.com/v1/images:annotate?key=" + quote(GOOGLE_VISION_API_KEY),
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+    )
+
+    try:
+        resp = urlopen(req, timeout=30)
+        result = json.loads(resp.read())
+    except HTTPError as e:
+        detail = ""
+        try:
+            detail = json.loads(e.read()).get("error", {}).get("message", "")
+        except Exception:
+            detail = str(e)
+        raise RuntimeError("Google Vision OCR 失败：" + (detail or str(e)))
+
+    response = (result.get("responses") or [{}])[0]
+    if response.get("error"):
+        raise RuntimeError("Google Vision OCR 失败：" + response["error"].get("message", "未知错误"))
+
+    full_text = (response.get("fullTextAnnotation") or {}).get("text", "")
+    if not full_text and response.get("textAnnotations"):
+        full_text = response["textAnnotations"][0].get("description", "")
+    return full_text.strip()
+
+
 def _keyword_analyze(text):
     """Keyword-based fallback analysis (no AI needed)."""
     cat_keywords = {
@@ -502,14 +554,17 @@ def api_upload():
     if suffix == ".txt":
         text = file_data.decode("utf-8", errors="replace")
     elif suffix in (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"):
-        return _cors_response({
-            "status": "error",
-            "message": "图片 OCR 功能在 Vercel 上暂不可用，请上传文本文件或直接输入文字"
-        }, 400)
+        try:
+            text = _call_google_vision_ocr(file_data)
+        except Exception as e:
+            return _cors_response({
+                "status": "error",
+                "message": str(e)
+            }, 400)
     elif suffix == ".pdf":
         return _cors_response({
             "status": "error",
-            "message": "PDF 解析功能在 Vercel 上暂不可用，请复制文字内容直接粘贴"
+            "message": "PDF OCR 暂不支持。请先上传课表截图/JPG/PNG，或复制 PDF 文字直接粘贴。"
         }, 400)
     else:
         # Try as text
@@ -574,6 +629,7 @@ def api_health():
     return _cors_response({
         "status": "ok",
         "deepseek": bool(DEEPSEEK_API_KEY),
+        "google_vision_ocr": bool(GOOGLE_VISION_API_KEY),
         "google_calendar": gc_status,
         "google_error": gc_error,
         "google_debug": {

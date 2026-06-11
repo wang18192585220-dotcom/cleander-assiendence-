@@ -400,7 +400,7 @@ input[type="color"]{
           <label class="file-upload-label" for="fileUpload" id="fileUploadLabel">
             📎 上传课表 / 任务截图 / PDF 文件
           </label>
-          <input type="file" id="fileUpload" class="file-upload" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileUpload(this)">
+          <input type="file" id="fileUpload" class="file-upload" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.gif,.txt" onchange="handleFileUpload(this)">
         </div>
         <!-- Upload progress -->
         <div id="uploadStatus" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:12px;text-align:center"></div>
@@ -1570,10 +1570,10 @@ async function handleFileUpload(input) {
   if (!file) return;
 
   // Validate
-  const allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
+  const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.txt'];
   const ext = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowed.includes(ext)) {
-    alert('仅支持 PDF / JPG / PNG 文件');
+    alert('仅支持 PDF / JPG / PNG / WebP / BMP / GIF / TXT 文件');
     input.value = '';
     return;
   }
