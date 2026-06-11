@@ -86,8 +86,11 @@ SCHEDULE_PROMPT = """你是一个智能排班助手。根据用户已有的日�
 
 BATCH_EXTRACT_PROMPT = """你是一个严格的日程/课表解析助手。从以下 OCR 文档/图片文字中提取所有独立的任务、事件、课程、lecture、tutorial、assignment、quiz、deadline。
 
-文档内容：
-{text}
+OCR 布局行（按 y 坐标聚合同一行、按 x 坐标排序，优先参考）：
+{layout_text}
+
+OCR 全文：
+{raw_text}
 
 请将每个独立的任务/事件/课程拆解出来，以JSON数组格式返回（只返回JSON数组，不要任何前缀、后缀或markdown标记）：
 [
@@ -97,9 +100,11 @@ BATCH_EXTRACT_PROMPT = """你是一个严格的日程/课表解析助手。从�
 
 规则：
 - 每个任务/课程必须独立一行
+- 优先根据 OCR 布局行判断课程、日期、时间、section；布局行里的 y 坐标相近表示同一行，x 坐标接近表示同一格/同一列
 - 如果 OCR 里出现类似 "[Tutorial] Class 01 Sec 08"、"[Lecture] Class 01 Sec 04"、"Final quiz"、"assignment due"，即使没有日期或时间，也必须作为一个任务输出
 - 不允许因为日期/时间缺失而丢弃任务；无法确定的 dateISO/startTime/endTime/durationMinutes 填 null
 - 不允许编造日期、时间、地点；只从 OCR 文字中明确出现的信息提取
+- 没有明确日期/时间时必须填 null，不能输出 "?"，不能根据行号或课程顺序猜时间
 - 如果一行只有课程名，没有时间，也输出该课程，reason 写 "OCR 中缺少日期/时间"
 - 今天日期是 {today}，根据文档中的星期/日期推算出 dateISO
 - 如果只有星期没有具体日期（如"周四"），推算最近的下一个该星期几
@@ -112,13 +117,17 @@ BATCH_EXTRACT_PROMPT = """你是一个严格的日程/课表解析助手。从�
 
 STRICT_OCR_EXTRACT_PROMPT = """你是课表 OCR 纠错解析器。上一次解析返回了空结果，这是错误的。请只根据 OCR 原文强制提取候选课程/任务。
 
+OCR 布局行（优先参考）：
+{layout_text}
+
 OCR 原文：
-{text}
+{raw_text}
 
 输出要求：
 - 只返回 JSON 数组，不要 markdown
 - 每个 "[Tutorial]"、"[Lecture]"、"Class"、"Sec"、"quiz"、"assignment"、"due"、"deadline"、"meeting" 都应形成一个独立对象
 - 没有明确日期/时间时，dateISO/startTime/endTime/durationMinutes 必须填 null，不要猜
+- 没有明确日期/时间时不能输出 "?"、"未知"、"待定" 到时间字段
 - title 保留课程/任务名称，例如 "[Tutorial] Class 01 Sec 08"
 - category 对课程填 "学习"
 - reason 说明信息来源或缺失项，例如 "OCR 中缺少日期/时间"
@@ -279,10 +288,29 @@ def _call_deepseek(messages, temperature=0.1, max_tokens=300, timeout=15):
     return result["choices"][0]["message"]["content"].strip()
 
 
-def _extract_tasks_with_deepseek(text):
+def _format_ocr_layout_lines(layout_lines, limit=120):
+    """Format OCR layout lines for LLM input/debug previews."""
+    if not layout_lines:
+        return "(无结构化布局行)"
+    rows = []
+    for item in layout_lines[:limit]:
+        rows.append(
+            f"[{item['line']:03d} y={item['y']} x={item['x']}] {item['text']}"
+        )
+    if len(layout_lines) > limit:
+        rows.append(f"... 其余 {len(layout_lines) - limit} 行已省略")
+    return "\n".join(rows)
+
+
+def _extract_tasks_with_deepseek(text, layout_lines=None):
     """Extract task list with DeepSeek, retrying once with OCR-specific instructions."""
     today = time.strftime("%Y-%m-%d")
-    prompt = BATCH_EXTRACT_PROMPT.format(text=text[:6000], today=today)
+    layout_text = _format_ocr_layout_lines(layout_lines or [], limit=120)
+    prompt = BATCH_EXTRACT_PROMPT.format(
+        raw_text=text[:6000],
+        layout_text=layout_text[:6000],
+        today=today,
+    )
     content = _call_deepseek(
         messages=[
             {"role": "system", "content": prompt},
@@ -296,7 +324,10 @@ def _extract_tasks_with_deepseek(text):
     if isinstance(tasks, list) and tasks:
         return tasks, "ai"
 
-    retry_prompt = STRICT_OCR_EXTRACT_PROMPT.format(text=text[:6000])
+    retry_prompt = STRICT_OCR_EXTRACT_PROMPT.format(
+        raw_text=text[:6000],
+        layout_text=layout_text[:6000],
+    )
     retry_content = _call_deepseek(
         messages=[
             {"role": "system", "content": retry_prompt},
@@ -320,7 +351,7 @@ def _extract_json(content):
         content = md_match.group(1).strip()
 
     # Strategy 2: Find the first { or [ and matching close
-    for open_char, close_char in [("{", "}"), ("[", "]")]:
+    for open_char, close_char in [("[", "]"), ("{", "}")]:
         start = content.find(open_char)
         if start == -1:
             continue
@@ -344,6 +375,94 @@ def _extract_json(content):
                 continue
 
     return None
+
+
+def _vertex_xy(vertex):
+    return vertex.get("x", 0), vertex.get("y", 0)
+
+
+def _word_from_vision(word):
+    text = "".join(symbol.get("text", "") for symbol in word.get("symbols", []))
+    vertices = (word.get("boundingBox") or {}).get("vertices") or []
+    if not text or not vertices:
+        return None
+    xs, ys = zip(*[_vertex_xy(vertex) for vertex in vertices])
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    return {
+        "text": text,
+        "x": min_x,
+        "y": min_y,
+        "right": max_x,
+        "bottom": max_y,
+        "center_y": (min_y + max_y) / 2,
+        "height": max(1, max_y - min_y),
+    }
+
+
+def _extract_vision_layout_lines(response):
+    """Rebuild approximate OCR lines from Google Vision word coordinates."""
+    words = []
+    annotation = response.get("fullTextAnnotation") or {}
+    for page in annotation.get("pages", []) or []:
+        for block in page.get("blocks", []) or []:
+            for paragraph in block.get("paragraphs", []) or []:
+                for word in paragraph.get("words", []) or []:
+                    parsed = _word_from_vision(word)
+                    if parsed:
+                        words.append(parsed)
+
+    if not words:
+        raw_text = annotation.get("text", "")
+        return [
+            {
+                "line": i + 1,
+                "text": line.strip(),
+                "x": 0,
+                "y": i,
+                "width": 0,
+                "height": 0,
+            }
+            for i, line in enumerate(raw_text.splitlines())
+            if line.strip()
+        ]
+
+    heights = sorted(word["height"] for word in words)
+    median_height = heights[len(heights) // 2] if heights else 16
+    y_tolerance = max(10, int(median_height * 0.75))
+
+    lines = []
+    for word in sorted(words, key=lambda item: (item["center_y"], item["x"])):
+        target = None
+        for line in lines:
+            if abs(word["center_y"] - line["center_y"]) <= y_tolerance:
+                target = line
+                break
+        if target is None:
+            target = {"center_y": word["center_y"], "words": []}
+            lines.append(target)
+        target["words"].append(word)
+        count = len(target["words"])
+        target["center_y"] = ((target["center_y"] * (count - 1)) + word["center_y"]) / count
+
+    layout_lines = []
+    for idx, line in enumerate(sorted(lines, key=lambda item: item["center_y"]), start=1):
+        line_words = sorted(line["words"], key=lambda item: item["x"])
+        text = " ".join(word["text"] for word in line_words).strip()
+        min_x = min(word["x"] for word in line_words)
+        max_x = max(word["right"] for word in line_words)
+        min_y = min(word["y"] for word in line_words)
+        max_y = max(word["bottom"] for word in line_words)
+        if text:
+            layout_lines.append({
+                "line": idx,
+                "text": text,
+                "x": int(round(min_x)),
+                "y": int(round(min_y)),
+                "width": int(round(max_x - min_x)),
+                "height": int(round(max_y - min_y)),
+            })
+    return layout_lines
 
 
 def _call_google_vision_ocr(file_data):
@@ -392,7 +511,12 @@ def _call_google_vision_ocr(file_data):
     full_text = (response.get("fullTextAnnotation") or {}).get("text", "")
     if not full_text and response.get("textAnnotations"):
         full_text = response["textAnnotations"][0].get("description", "")
-    return full_text.strip()
+    layout_lines = _extract_vision_layout_lines(response)
+    return {
+        "raw_text": full_text.strip(),
+        "layout_lines": layout_lines,
+        "layout_preview": _format_ocr_layout_lines(layout_lines, limit=80),
+    }
 
 
 def _keyword_analyze(text):
@@ -605,14 +729,21 @@ def api_upload():
     file_data = file.read()
 
     # Extract text from file
+    ocr_payload = {"raw_text": "", "layout_lines": [], "layout_preview": ""}
     text = ""
     suffix = os.path.splitext(filename)[1].lower()
 
     if suffix == ".txt":
         text = file_data.decode("utf-8", errors="replace")
+        ocr_payload = {
+            "raw_text": text,
+            "layout_lines": [],
+            "layout_preview": "",
+        }
     elif suffix in (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"):
         try:
-            text = _call_google_vision_ocr(file_data)
+            ocr_payload = _call_google_vision_ocr(file_data)
+            text = ocr_payload.get("raw_text", "")
         except Exception as e:
             return _cors_response({
                 "status": "error",
@@ -627,6 +758,11 @@ def api_upload():
         # Try as text
         try:
             text = file_data.decode("utf-8", errors="replace")
+            ocr_payload = {
+                "raw_text": text,
+                "layout_lines": [],
+                "layout_preview": "",
+            }
         except Exception:
             return _cors_response({"status": "error", "message": f"不支持的文件格式: {suffix}"}, 400)
 
@@ -642,26 +778,29 @@ def api_upload():
             "status": "error",
             "source": "ocr",
             "raw_text": text[:5000],
+            "ocr_layout_preview": ocr_payload.get("layout_preview", ""),
             "total_chars": len(text),
             "tasks": [],
             "message": "OCR 已识别文字，但必须配置 DEEPSEEK_API_KEY 才能解析任务。"
         }, 500)
 
     try:
-        tasks, source = _extract_tasks_with_deepseek(text)
+        tasks, source = _extract_tasks_with_deepseek(text, ocr_payload.get("layout_lines", []))
         if not tasks:
             return _cors_response({
                 "status": "error",
                 "source": source,
                 "raw_text": text[:5000],
+                "ocr_layout_preview": ocr_payload.get("layout_preview", ""),
                 "total_chars": len(text),
                 "tasks": [],
-                "message": "DeepSeek 两次解析后仍未能从 OCR 文字中解析出任务。请裁剪图片只保留课表/任务区域后重试。"
+                "message": "DeepSeek 两次解析后仍未能从 OCR 布局/文字中解析出任务。请查看下方 OCR 布局预览，确认课表区域是否被清晰识别。"
             }, 422)
         return _cors_response({
             "status": "ok",
             "source": source,
             "raw_text": text[:5000],
+            "ocr_layout_preview": ocr_payload.get("layout_preview", ""),
             "total_chars": len(text),
             "tasks": tasks,
             "message": f"共识别 {len(text)} 字，DeepSeek 提取 {len(tasks)} 个任务"
@@ -671,6 +810,7 @@ def api_upload():
             "status": "error",
             "source": "ai",
             "raw_text": text[:5000],
+            "ocr_layout_preview": ocr_payload.get("layout_preview", ""),
             "total_chars": len(text),
             "tasks": [],
             "message": "DeepSeek 解析失败：" + str(e)

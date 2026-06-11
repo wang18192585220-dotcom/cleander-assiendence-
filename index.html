@@ -302,6 +302,60 @@ input[type="color"]{
   cursor:pointer;transition:all var(--transition);
 }
 .board-action:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.board-content{
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start;
+}
+.board-main{min-width:0}
+.board-side{
+  border:1px solid var(--border);border-radius:10px;background:#fbfbfd;
+  padding:14px;position:sticky;top:24px;
+}
+.board-side-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;
+}
+.board-side-date{font-size:15px;font-weight:750;line-height:1.35;color:var(--text)}
+.board-side-sub{font-size:11px;color:var(--text-tertiary);margin-top:2px}
+.board-side-count{
+  min-width:54px;text-align:center;padding:6px 8px;border-radius:8px;
+  background:var(--blue-light);color:var(--blue);font-weight:750;font-size:20px;line-height:1;
+}
+.board-side-count span{
+  display:block;font-size:10px;font-weight:650;color:var(--text-secondary);margin-top:4px;
+}
+.board-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;
+}
+.board-stat{
+  padding:8px 6px;border-radius:8px;background:var(--card-bg);
+  border:1px solid var(--border);text-align:center;
+}
+.board-stat-value{font-size:16px;font-weight:750;color:var(--text)}
+.board-stat-label{font-size:10px;color:var(--text-tertiary);margin-top:1px}
+.selected-task-list{display:flex;flex-direction:column;gap:8px}
+.selected-task{
+  display:flex;align-items:flex-start;gap:9px;padding:9px;
+  border:1px solid var(--border);border-radius:8px;background:var(--card-bg);
+}
+.selected-task.done{opacity:.66}
+.selected-task-info{min-width:0;flex:1}
+.selected-task-title{
+  font-size:13px;font-weight:700;line-height:1.35;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.selected-task.done .selected-task-title{text-decoration:line-through;color:var(--text-secondary)}
+.selected-task-detail{
+  font-size:11px;color:var(--text-secondary);line-height:1.45;margin-top:3px;
+}
+.task-check{
+  flex:0 0 auto;width:18px;height:18px;border-radius:50%;
+  border:1.5px solid currentColor;background:transparent;color:var(--gray);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;line-height:1;cursor:pointer;
+  transition:all var(--transition);margin-top:1px;padding:0;
+}
+.task-check:hover{color:var(--blue);background:var(--blue-light)}
+.task-check.done{color:#1a7d36;background:var(--green-light);border-color:var(--green)}
+.board-empty.compact{padding:22px 8px;background:var(--card-bg);border:1px dashed var(--border);border-radius:8px}
 .board-grid{
   display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--border);border-left:1px solid var(--border);
 }
@@ -313,10 +367,13 @@ input[type="color"]{
   min-height:150px;background:var(--card-bg);
   padding:10px;display:flex;flex-direction:column;gap:6px;
   border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-  border-radius:0;
+  border-radius:0;cursor:pointer;transition:background var(--transition),box-shadow var(--transition);
 }
+.board-day:hover{background:#f8fbff}
 .board-day.today{background:#f4f7ff}
+.board-day.selected{box-shadow:inset 0 0 0 2px var(--blue);background:#eef5ff}
 .board-day.out-month{background:#fafafa;color:var(--text-tertiary)}
+.board-day.out-month.selected{background:#eef5ff}
 .board-day-head{
   display:flex;align-items:center;justify-content:space-between;gap:6px;
   font-size:13px;font-weight:700;color:var(--text);
@@ -337,6 +394,10 @@ input[type="color"]{
 .board-task.p3{background:#f3e8a8;color:#4a4000}
 .board-task.p4{background:#d8d8de;color:#333}
 .board-task.done{opacity:.62}
+.board-task .task-check{
+  width:14px;height:14px;font-size:9px;margin-top:0;color:inherit;background:rgba(255,255,255,.36);
+}
+.board-task .task-check.done{background:rgba(255,255,255,.68);border-color:currentColor}
 .board-task-time{font-size:11px;font-weight:700;color:inherit;opacity:.75;white-space:nowrap}
 .board-task-title{font-size:12px;font-weight:650;line-height:1.2;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .board-task-meta{display:none}
@@ -363,8 +424,10 @@ input[type="color"]{
   .priority-grid{grid-template-columns:1fr 1fr}
   .board-shell{padding:0 16px 28px}
   .board-title{font-size:20px}
+  .board-content{grid-template-columns:1fr}
+  .board-side{position:static}
   .board-grid{min-width:760px}
-  .panel-body.board-scroll{overflow-x:auto;padding:0}
+  .board-main.board-scroll{overflow-x:auto}
   .board-weekday{min-width:108px}
   .board-day{min-width:108px;min-height:124px}
 }
@@ -607,9 +670,37 @@ input[type="color"]{
       <button class="board-action" onclick="goBoardToday()">Today</button>
       <button class="board-action" onclick="shiftBoardMonth(1)">›</button>
     </div>
-    <div class="panel-body board-scroll">
-      <div id="boardRange" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px"></div>
-      <div class="board-grid" id="calendarBoard"></div>
+    <div class="panel-body">
+      <div class="board-content">
+        <div class="board-main board-scroll">
+          <div id="boardRange" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px"></div>
+          <div class="board-grid" id="calendarBoard"></div>
+        </div>
+        <aside class="board-side" aria-label="选中日期任务">
+          <div class="board-side-head">
+            <div>
+              <div class="board-side-date" id="selectedBoardDateTitle">今天</div>
+              <div class="board-side-sub" id="selectedBoardDateSub">选中日期任务</div>
+            </div>
+            <div class="board-side-count" id="selectedBoardRemaining">0<span>剩余</span></div>
+          </div>
+          <div class="board-stats">
+            <div class="board-stat">
+              <div class="board-stat-value" id="selectedBoardTotal">0</div>
+              <div class="board-stat-label">共</div>
+            </div>
+            <div class="board-stat">
+              <div class="board-stat-value" id="selectedBoardPending">0</div>
+              <div class="board-stat-label">剩余</div>
+            </div>
+            <div class="board-stat">
+              <div class="board-stat-value" id="selectedBoardDone">0</div>
+              <div class="board-stat-label">已完成</div>
+            </div>
+          </div>
+          <div class="selected-task-list" id="selectedBoardTasks"></div>
+        </aside>
+      </div>
     </div>
   </div>
 </section>
@@ -647,6 +738,7 @@ const priorityStyles = {
 // ==================== Local Calendar Board ====================
 const BOARD_STORAGE_KEY = 'calendarAssistant.boardTasks.v1';
 let boardMonthDate = new Date();
+let selectedBoardDateISO = toDateISO(new Date());
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -669,6 +761,38 @@ function getWeekStart(date) {
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   return d;
+}
+
+function formatBoardDateLabel(dateISO) {
+  const d = new Date(dateISO + 'T00:00:00');
+  if (isNaN(d.getTime())) return { title: '选中日期', sub: dateISO || '' };
+  const todayISO = toDateISO(new Date());
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const dateText = `${d.getMonth() + 1}月${d.getDate()}日`;
+  return {
+    title: dateISO === todayISO ? `今天 ${dateText}` : `${dateText} ${weekdays[d.getDay()]}`,
+    sub: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+  };
+}
+
+function formatTaskTime(task) {
+  if (task.startTime && task.endTime) return `${task.startTime}-${task.endTime}`;
+  return task.startTime || task.endTime || '未设时间';
+}
+
+function getTaskBrief(task) {
+  const meta = [];
+  if (task.category) meta.push(task.category);
+  if (task.projectName) meta.push(task.projectName);
+  const firstLine = meta.join(' · ');
+  const secondLine = task.location || task.reason || '';
+  return [formatTaskTime(task), firstLine, secondLine].filter(Boolean).join(' · ');
+}
+
+function selectBoardDate(dateISO) {
+  selectedBoardDateISO = dateISO;
+  boardMonthDate = new Date(dateISO + 'T00:00:00');
+  renderCalendarBoard();
 }
 
 function loadBoardTasks() {
@@ -726,6 +850,7 @@ function addTaskToBoard(taskData) {
   tasks.sort((a, b) => (a.dateISO + a.startTime).localeCompare(b.dateISO + b.startTime));
   saveBoardTasks(tasks);
   boardMonthDate = new Date(task.dateISO + 'T00:00:00');
+  selectedBoardDateISO = task.dateISO;
   renderCalendarBoard();
   return task;
 }
@@ -758,6 +883,7 @@ function shiftBoardMonth(delta) {
 
 function goBoardToday() {
   boardMonthDate = new Date();
+  selectedBoardDateISO = toDateISO(boardMonthDate);
   renderCalendarBoard();
 }
 
@@ -815,6 +941,7 @@ function renderCalendarBoard() {
           const priCls = (task.priority || 'P2').toLowerCase();
           const time = task.endTime ? task.endTime : task.startTime;
           return `<div class="board-task ${priCls} ${task.done ? 'done' : ''}" title="${escapeHtml(task.title)}">
+            <button class="task-check ${task.done ? 'done' : ''}" onclick="event.stopPropagation();toggleBoardTask('${task.id}')" aria-label="${task.done ? '恢复任务' : '完成任务'}">${task.done ? '✓' : ''}</button>
             <div class="board-task-title">${task.done ? '✓ ' : ''}${escapeHtml(task.title)}</div>
             <div class="board-task-time">${escapeHtml(time || '')}</div>
             <div class="board-task-meta">
@@ -831,7 +958,7 @@ function renderCalendarBoard() {
         }).join('')
       : '';
 
-    return `<div class="board-day ${iso === todayISO ? 'today' : ''} ${inMonth ? '' : 'out-month'}">
+    return `<div class="board-day ${iso === todayISO ? 'today' : ''} ${iso === selectedBoardDateISO ? 'selected' : ''} ${inMonth ? '' : 'out-month'}" onclick="selectBoardDate('${iso}')">
       <div class="board-day-head">
         <span class="board-day-number">${day.getDate()}</span>
         <span class="board-day-date">${inMonth ? '' : day.toLocaleString('en-US', { month: 'short' })}</span>
@@ -841,6 +968,47 @@ function renderCalendarBoard() {
   }).join('');
 
   board.innerHTML = weekdayHtml + dayHtml;
+  renderSelectedBoardTasks(tasks);
+}
+
+function renderSelectedBoardTasks(tasks = loadBoardTasks()) {
+  const title = document.getElementById('selectedBoardDateTitle');
+  const sub = document.getElementById('selectedBoardDateSub');
+  const totalEl = document.getElementById('selectedBoardTotal');
+  const pendingEl = document.getElementById('selectedBoardPending');
+  const doneEl = document.getElementById('selectedBoardDone');
+  const remainingEl = document.getElementById('selectedBoardRemaining');
+  const list = document.getElementById('selectedBoardTasks');
+  if (!title || !sub || !list) return;
+
+  const label = formatBoardDateLabel(selectedBoardDateISO);
+  const selectedTasks = tasks
+    .filter(task => task.dateISO === selectedBoardDateISO)
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+  const doneCount = selectedTasks.filter(task => task.done).length;
+  const pendingCount = selectedTasks.length - doneCount;
+
+  title.textContent = label.title;
+  sub.textContent = label.sub;
+  totalEl.textContent = selectedTasks.length;
+  pendingEl.textContent = pendingCount;
+  doneEl.textContent = doneCount;
+  remainingEl.innerHTML = `${pendingCount}<span>剩余</span>`;
+
+  if (selectedTasks.length === 0) {
+    list.innerHTML = '<div class="board-empty compact">这一天还没有任务</div>';
+    return;
+  }
+
+  list.innerHTML = selectedTasks.map(task => `
+    <div class="selected-task ${task.done ? 'done' : ''}">
+      <button class="task-check ${task.done ? 'done' : ''}" onclick="toggleBoardTask('${task.id}')" aria-label="${task.done ? '恢复任务' : '完成任务'}">${task.done ? '✓' : ''}</button>
+      <div class="selected-task-info">
+        <div class="selected-task-title">${escapeHtml(task.title)}</div>
+        <div class="selected-task-detail">${escapeHtml(getTaskBrief(task))}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ==================== Priority Selection ====================
@@ -1565,6 +1733,35 @@ function setUploadStatus(msg, type) {
   else if (type === 'error') { s.style.background = '#ffeaea'; s.style.color = '#ff3b30'; }
 }
 
+function escapeHtmlText(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function showOcrPreview(data) {
+  const rp = document.getElementById('rawTextPreview');
+  const rawText = data && data.raw_text ? String(data.raw_text) : '';
+  const layoutPreview = data && data.ocr_layout_preview ? String(data.ocr_layout_preview) : '';
+  if (!rawText && !layoutPreview) {
+    rp.style.display = 'none';
+    rp.innerHTML = '';
+    return;
+  }
+  const parts = [];
+  if (layoutPreview) {
+    parts.push('<strong>OCR 布局行：</strong><br>' + escapeHtmlText(layoutPreview).replace(/\n/g, '<br>'));
+  }
+  if (rawText) {
+    parts.push('<strong>识别文字：</strong><br>' + escapeHtmlText(rawText).replace(/\n/g, '<br>'));
+  }
+  rp.style.display = '';
+  rp.innerHTML = parts.join('<br><br>');
+}
+
 async function handleFileUpload(input) {
   const file = input.files[0];
   if (!file) return;
@@ -1579,6 +1776,7 @@ async function handleFileUpload(input) {
   }
 
   setUploadStatus('⏳ 正在上传并分析：' + file.name + '...', 'loading');
+  showOcrPreview({});
 
   const formData = new FormData();
   formData.append('file', file);
@@ -1601,17 +1799,13 @@ async function handleFileUpload(input) {
         setUploadStatus('⚠️ 未能识别出任务，请检查文件清晰度', 'error');
       }
 
-      // Show raw text preview
-      if (data.raw_text) {
-        const rp = document.getElementById('rawTextPreview');
-        rp.style.display = '';
-        rp.innerHTML = '<strong>识别文字：</strong><br>' + data.raw_text.replace(/\n/g, '<br>');
-      }
+      showOcrPreview(data);
 
       // Render task list
       renderExtractedTasks();
     } else {
       setUploadStatus('❌ ' + (data.message || '上传失败'), 'error');
+      showOcrPreview(data);
     }
   } catch (err) {
     setUploadStatus('❌ 无法连接服务（请确认桥接服务已启动）', 'error');
