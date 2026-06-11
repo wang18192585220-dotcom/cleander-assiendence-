@@ -6,9 +6,10 @@ import json, hashlib, os, re, time, io
 from datetime import datetime, timedelta
 from urllib.request import Request, urlopen
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_from_directory
 
 app = Flask(__name__)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ============================================================
 # Environment variables (set in Vercel dashboard)
@@ -334,6 +335,19 @@ def _cors_response(data, status=200):
 # ============================================================
 # Routes
 # ============================================================
+@app.route("/", methods=["GET"])
+def web_index():
+    return send_from_directory(PROJECT_ROOT, "index.html")
+
+
+@app.route("/<path:path>", methods=["GET"])
+def web_fallback(path):
+    file_path = os.path.join(PROJECT_ROOT, path)
+    if os.path.isfile(file_path):
+        return send_from_directory(PROJECT_ROOT, path)
+    return send_from_directory(PROJECT_ROOT, "index.html")
+
+
 @app.route("/api/analyze", methods=["POST", "OPTIONS"])
 def api_analyze():
     if request.method == "OPTIONS":
