@@ -10,6 +10,8 @@ from urllib.request import Request, urlopen
 
 from flask import Flask, request, jsonify, Response, send_from_directory
 
+import work_profile
+
 app = Flask(__name__)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -552,6 +554,122 @@ def _keyword_analyze(text):
     }
 
 
+def _parse_board_minutes(value):
+    """Convert HH:MM to minutes after midnight."""
+    if not value or not isinstance(value, str):
+        return None
+    match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
+    if not match:
+        return None
+    hour, minute = int(match.group(1)), int(match.group(2))
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        return None
+    return hour * 60 + minute
+
+
+def _format_board_minutes(minutes):
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def _normalize_board_task_window(task):
+    """Return (dateISO, start_minute, end_minute, message)."""
+    date_iso = task.get("dateISO") or task.get("date")
+    start = _parse_board_minutes(task.get("startTime") or task.get("start"))
+    end = _parse_board_minutes(task.get("endTime") or task.get("end"))
+    duration = task.get("durationMinutes")
+
+    if start is not None and end is None and duration:
+        try:
+            end = start + int(duration)
+        except (TypeError, ValueError):
+            end = None
+
+    if not date_iso:
+        return None, None, None, "任务缺少日期，无法检测冲突"
+    if start is None:
+        return date_iso, None, None, "任务缺少开始时间，无法检测冲突"
+    if end is None:
+        return date_iso, start, None, "任务缺少结束时间或预计用时，无法检测冲突"
+    if end <= start:
+        return date_iso, start, end, "任务结束时间必须晚于开始时间"
+
+    return date_iso, start, end, ""
+
+
+def _find_board_recommendations(task, existing_tasks, days=7):
+    date_iso, start, end, message = _normalize_board_task_window(task)
+    if message:
+        return []
+
+    duration = end - start
+    try:
+        base_day = datetime.strptime(date_iso[:10], "%Y-%m-%d")
+    except ValueError:
+        return []
+
+    recommendations = []
+    work_start = 9 * 60
+    work_end = 22 * 60
+
+    for offset in range(max(1, min(days, 14))):
+        day = base_day + timedelta(days=offset)
+        day_iso = day.strftime("%Y-%m-%d")
+        occupied = []
+
+        for existing in existing_tasks:
+            ex_date, ex_start, ex_end, ex_message = _normalize_board_task_window(existing)
+            if ex_message or ex_date != day_iso:
+                continue
+            occupied.append((max(work_start, ex_start), min(work_end, ex_end), existing))
+
+        occupied.sort(key=lambda item: item[0])
+        merged = []
+        for occ_start, occ_end, existing in occupied:
+            if occ_end <= work_start or occ_start >= work_end:
+                continue
+            if not merged or occ_start > merged[-1][1]:
+                merged.append([occ_start, occ_end, [existing]])
+            else:
+                merged[-1][1] = max(merged[-1][1], occ_end)
+                merged[-1][2].append(existing)
+
+        cursor = work_start
+        gaps = []
+        for occ_start, occ_end, _items in merged:
+            if cursor + duration <= occ_start:
+                gaps.append((cursor, occ_start))
+            cursor = max(cursor, occ_end)
+        if cursor + duration <= work_end:
+            gaps.append((cursor, work_end))
+
+        for gap_start, gap_end in gaps:
+            suggested_start = max(gap_start, start) if offset == 0 and start >= gap_start and start + duration <= gap_end else gap_start
+            suggested_end = suggested_start + duration
+            if suggested_end > gap_end:
+                continue
+
+            if not occupied:
+                reason = f"这一天看板没有其他任务，{_format_board_minutes(suggested_start)}-{_format_board_minutes(suggested_end)} 满足 {duration} 分钟连续时长"
+            else:
+                avoided = "、".join(
+                    f"{_format_board_minutes(s)}-{_format_board_minutes(e)}"
+                    for s, e, _ in merged[:3]
+                )
+                reason = f"避开了已有任务时段 {avoided}，并保留 {duration} 分钟连续空闲"
+
+            recommendations.append({
+                "dateISO": day_iso,
+                "startTime": _format_board_minutes(suggested_start),
+                "endTime": _format_board_minutes(suggested_end),
+                "durationMinutes": duration,
+                "reason": reason,
+            })
+            if len(recommendations) >= 3:
+                return recommendations
+
+    return recommendations
+
+
 # ============================================================
 # CORS helper
 # ============================================================
@@ -643,6 +761,138 @@ def api_calendar_read():
     days = request.args.get("days", 14, type=int)
     events = _read_calendar_events(days)
     return _cors_response({"status": "ok", "events": events, "count": len(events)})
+
+
+@app.route("/api/board/conflicts", methods=["POST", "OPTIONS"])
+def api_board_conflicts():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+
+    data = request.get_json(silent=True) or {}
+    task = data.get("task") or {}
+    existing_tasks = data.get("existingTasks") or []
+    days = data.get("days", 7)
+
+    date_iso, start, end, message = _normalize_board_task_window(task)
+    if message:
+        return _cors_response({
+            "status": "error",
+            "message": message,
+            "hasConflict": False,
+            "conflicts": [],
+            "recommendations": [],
+        }, 400)
+
+    conflicts = []
+    for existing in existing_tasks:
+        ex_date, ex_start, ex_end, ex_message = _normalize_board_task_window(existing)
+        if ex_message or ex_date != date_iso:
+            continue
+        if start < ex_end and end > ex_start:
+            conflicts.append({
+                "id": existing.get("id", ""),
+                "title": existing.get("title", "未命名任务"),
+                "dateISO": ex_date,
+                "startTime": _format_board_minutes(ex_start),
+                "endTime": _format_board_minutes(ex_end),
+            })
+
+    recommendations = _find_board_recommendations(task, existing_tasks, days)
+    return _cors_response({
+        "status": "ok",
+        "hasConflict": bool(conflicts),
+        "conflicts": conflicts,
+        "recommendations": recommendations,
+        "message": "发现时间冲突，请选择推荐时间或强行添加" if conflicts else "该时间段没有冲突",
+    })
+
+
+@app.route("/api/work-profile", methods=["POST", "OPTIONS"])
+def api_work_profile():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+    data = request.get_json(silent=True) or {}
+    try:
+        profile = work_profile.build_profile(
+            data.get("tasks") or [],
+            period_type=data.get("periodType", "week"),
+            start_date=data.get("startDate"),
+            end_date=data.get("endDate"),
+            project_name=data.get("projectName", ""),
+            status=data.get("status", "all"),
+        )
+        return _cors_response({"status": "ok", **profile})
+    except Exception as e:
+        return _cors_response({"status": "error", "message": str(e)}, 500)
+
+
+@app.route("/api/work-profile/daily-summary", methods=["POST", "OPTIONS"])
+def api_work_profile_daily_summary():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+    data = request.get_json(silent=True) or {}
+    profile = data.get("profile") or work_profile.build_profile(
+        data.get("tasks") or [],
+        period_type="day",
+        start_date=data.get("date") or data.get("startDate"),
+        end_date=data.get("endDate"),
+    )
+    return _cors_response({
+        "status": "ok",
+        "source": "rule_fallback",
+        "summary": work_profile.rule_summary(profile, summary_type="daily"),
+    })
+
+
+@app.route("/api/work-profile/yearly-summary", methods=["POST", "OPTIONS"])
+def api_work_profile_yearly_summary():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+    data = request.get_json(silent=True) or {}
+    profile = data.get("profile") or work_profile.build_profile(
+        data.get("tasks") or [],
+        period_type="year",
+        start_date=data.get("startDate"),
+        end_date=data.get("endDate"),
+    )
+    return _cors_response({
+        "status": "ok",
+        "source": "rule_fallback",
+        "summary": work_profile.rule_summary(profile, summary_type="yearly"),
+    })
+
+
+@app.route("/api/tasks/reschedule-suggestions", methods=["POST", "OPTIONS"])
+def api_task_reschedule_suggestions():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+    data = request.get_json(silent=True) or {}
+    suggestions = work_profile.reschedule_suggestions(data.get("task") or {}, data.get("tasks") or [])
+    return _cors_response({"status": "ok", "suggestions": suggestions})
+
+
+@app.route("/api/tasks/accept-reschedule", methods=["POST", "OPTIONS"])
+def api_accept_reschedule():
+    if request.method == "OPTIONS":
+        return _cors_response({})
+    data = request.get_json(silent=True) or {}
+    task = data.get("task") or {}
+    suggestion = data.get("suggestion") or {}
+    if not task or not suggestion:
+        return _cors_response({"status": "error", "message": "Missing task or suggestion"}, 400)
+    original_start = task.get("originalScheduledStart") or f"{task.get('dateISO', '')}T{task.get('startTime', '')}"
+    original_end = task.get("originalScheduledEnd") or f"{task.get('dateISO', '')}T{task.get('endTime', '')}"
+    patch = {
+        "dateISO": suggestion.get("suggestedDate"),
+        "startTime": suggestion.get("suggestedStart"),
+        "endTime": suggestion.get("suggestedEnd"),
+        "originalScheduledStart": original_start,
+        "originalScheduledEnd": original_end,
+        "rescheduleCount": int(task.get("rescheduleCount") or 0) + 1,
+        "status": "planned",
+        "rescheduleReason": suggestion.get("reason", ""),
+    }
+    return _cors_response({"status": "ok", "taskId": task.get("id"), "patch": patch})
 
 
 @app.route("/api/schedule", methods=["POST", "OPTIONS"])

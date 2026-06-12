@@ -38,6 +38,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   background:var(--bg);color:var(--text);line-height:1.6;
   min-height:100vh;
+  overflow-x:hidden;
 }
 
 /* ===== Header ===== */
@@ -45,15 +46,29 @@ body{
   background:var(--card-bg);border-bottom:1px solid var(--border);
   padding:20px 32px;
 }
+.header-inner{
+  max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;
+}
+.header-copy{min-width:0}
 .header h1{font-size:22px;font-weight:700;letter-spacing:-0.3px}
 .header .subtitle{font-size:13px;color:var(--text-secondary);margin-top:2px}
 .header .tagline{font-size:12px;color:var(--text-tertiary);margin-top:4px}
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.top-nav-btn{
+  padding:9px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);
+  color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;
+  transition:all var(--transition);white-space:nowrap;
+}
+.top-nav-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.top-nav-btn.active{border-color:var(--blue);background:var(--blue);color:#fff}
+.app-view[hidden]{display:none}
 
 /* ===== Layout ===== */
 .container{
   max-width:1200px;margin:0 auto;padding:24px 20px 40px;
-  display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,400px);gap:24px;align-items:start;
 }
+.planner-left{min-width:0}
 
 /* ===== Panel Common ===== */
 .panel{
@@ -94,6 +109,8 @@ textarea::placeholder{color:var(--text-tertiary)}
   transition:all var(--transition);
 }
 .file-upload-label:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.upload-actions{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.upload-actions button{flex:0 0 auto}
 
 /* ===== Priority Matrix ===== */
 .priority-grid{
@@ -199,6 +216,67 @@ input[type="color"]{
 }
 .calendar-btn:disabled{background:var(--gray-light);color:var(--text-tertiary);cursor:not-allowed}
 .calendar-btn:not(:disabled):hover{background:#0066cc;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,113,227,.3)}
+
+/* ===== Conflict Recommendation Modal ===== */
+.conflict-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.36);z-index:50;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.conflict-modal.open{display:flex}
+.conflict-dialog{
+  width:min(620px,100%);max-height:min(760px,90vh);overflow:auto;
+  background:var(--card-bg);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.22);
+}
+.conflict-head{
+  padding:18px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+}
+.conflict-title{font-size:17px;font-weight:750;color:var(--text);line-height:1.35}
+.conflict-sub{font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.5}
+.conflict-close{
+  width:30px;height:30px;border:none;border-radius:8px;background:var(--gray-light);
+  color:var(--text-secondary);font-size:18px;cursor:pointer;flex:0 0 auto;
+}
+.conflict-close:hover{background:var(--red-light);color:var(--red)}
+.conflict-body{padding:18px 20px}
+.conflict-section-title{
+  font-size:12px;font-weight:750;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.4px;margin:0 0 8px;
+}
+.conflict-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.conflict-item{
+  padding:10px 12px;border-radius:8px;background:var(--red-light);
+  color:#7f1d1d;font-size:12px;line-height:1.45;
+}
+.recommendation-list{display:flex;flex-direction:column;gap:10px}
+.recommendation-item{
+  display:grid;grid-template-columns:112px minmax(0,1fr) auto;gap:12px;align-items:center;
+  padding:12px;border:1px solid var(--border);border-radius:8px;background:#fbfbfd;
+}
+.recommendation-time{font-size:13px;font-weight:750;color:var(--blue);line-height:1.45}
+.recommendation-reason{font-size:12px;color:var(--text-secondary);line-height:1.5}
+.recommendation-btn{
+  border:none;border-radius:8px;background:var(--blue);color:#fff;
+  padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.recommendation-btn:hover{background:#0066cc}
+.conflict-empty{
+  padding:14px;border:1px dashed var(--border);border-radius:8px;
+  color:var(--text-tertiary);font-size:12px;text-align:center;
+}
+.conflict-actions{
+  padding:14px 20px;border-top:1px solid var(--border);
+  display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;
+}
+.conflict-action{
+  border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:750;cursor:pointer;
+}
+.conflict-cancel{background:var(--gray-light);color:var(--text-secondary)}
+.conflict-force{background:var(--orange-light);color:#8a5800}
+@media (max-width:560px){
+  .recommendation-item{grid-template-columns:1fr}
+  .recommendation-btn{width:100%}
+}
 
 .missing-list{margin-top:8px}
 .missing-item{
@@ -383,6 +461,10 @@ input[type="color"]{
   display:inline-flex;align-items:center;justify-content:center;
 }
 .board-day-date{font-size:11px;font-weight:500;color:#c7c7cc}
+.board-day-count{
+  display:none;font-size:10px;font-weight:700;color:var(--blue);
+  background:var(--blue-light);border-radius:999px;padding:2px 6px;align-self:flex-start;
+}
 .board-task{
   background:#dfe5ff;border-left:none;
   border-radius:5px;padding:3px 6px;box-shadow:none;
@@ -416,25 +498,114 @@ input[type="color"]{
   margin:auto;text-align:center;color:var(--text-tertiary);font-size:12px;line-height:1.5;
   padding:18px 6px;
 }
+
+/* ===== Work Profile ===== */
+.work-profile-shell{max-width:1200px;margin:0 auto 40px;padding:0 20px}
+.wp-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wp-title{font-size:26px;font-weight:750;letter-spacing:-.4px}
+.wp-subtitle{font-size:12px;color:var(--text-secondary);font-weight:500;margin-left:2px}
+.wp-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0}
+.wp-segment{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card-bg)}
+.wp-segment button,.wp-control{
+  border:none;border-right:1px solid var(--border);background:transparent;
+  padding:8px 11px;font-size:12px;font-weight:700;color:var(--text-secondary);cursor:pointer;
+}
+.wp-segment button:last-child{border-right:none}
+.wp-segment button.active{background:var(--blue);color:#fff}
+.wp-control{border:1px solid var(--border);border-radius:8px;background:var(--card-bg)}
+.wp-select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);font-size:12px;color:var(--text)}
+.wp-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.wp-card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;min-width:0}
+.wp-card.span-3{grid-column:span 3}.wp-card.span-4{grid-column:span 4}.wp-card.span-5{grid-column:span 5}.wp-card.span-6{grid-column:span 6}.wp-card.span-7{grid-column:span 7}.wp-card.span-12{grid-column:span 12}
+.wp-card-title{font-size:13px;font-weight:750;color:var(--text);margin-bottom:10px;display:flex;justify-content:space-between;gap:8px}
+.wp-metric-value{font-size:26px;font-weight:800;line-height:1.1;color:var(--text)}
+.wp-metric-sub{font-size:11px;color:var(--text-secondary);margin-top:5px;line-height:1.45}
+.wp-note{font-size:11px;color:var(--text-tertiary);line-height:1.5}
+.wp-bars{display:flex;flex-direction:column;gap:8px}
+.wp-bar-row{display:grid;grid-template-columns:92px minmax(0,1fr) 56px;gap:8px;align-items:center;font-size:12px}
+.wp-bar-track{height:10px;background:var(--gray-light);border-radius:99px;overflow:hidden}
+.wp-bar-fill{height:100%;border-radius:99px;background:var(--blue)}
+.wp-project-list,.wp-achievements,.wp-task-list{display:flex;flex-direction:column;gap:9px}
+.wp-project{border:1px solid var(--border);border-radius:8px;padding:10px;background:#fbfbfd}
+.wp-project-head{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:750}
+.wp-project-meta{font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.45}
+.wp-progress{height:8px;background:var(--gray-light);border-radius:99px;overflow:hidden;margin-top:8px}
+.wp-progress span{display:block;height:100%;background:var(--green);border-radius:99px}
+.wp-svg{width:100%;height:220px;display:block}
+.wp-radar-label{font-size:10px;fill:var(--text-secondary)}
+.wp-coach{background:#fbfbfd;border:1px solid var(--border);border-radius:8px;padding:12px}
+.wp-coach h4{font-size:13px;margin-bottom:6px}.wp-coach p,.wp-coach li{font-size:12px;color:var(--text-secondary);line-height:1.55}
+.wp-task-row{border:1px solid var(--border);border-radius:8px;padding:10px;background:#fbfbfd}
+.wp-task-row.delayed{border-color:#ffd0cc;background:var(--red-light)}
+.wp-task-head{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:750}
+.wp-task-meta{font-size:11px;color:var(--text-secondary);line-height:1.5;margin-top:4px}
+.wp-progress-buttons{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.wp-progress-buttons button{border:none;border-radius:6px;background:var(--gray-light);color:var(--text-secondary);font-size:10px;font-weight:750;padding:4px 6px;cursor:pointer}
+.wp-progress-buttons button.active{background:var(--blue);color:#fff}
+.wp-drawer{position:fixed;right:0;top:0;bottom:0;width:min(420px,100%);background:var(--card-bg);box-shadow:-16px 0 42px rgba(0,0,0,.16);z-index:60;transform:translateX(105%);transition:transform var(--transition);display:flex;flex-direction:column}
+.wp-drawer.open{transform:translateX(0)}
+.wp-drawer-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}
+.wp-drawer-body{padding:16px 20px;overflow:auto}
+.wp-pill{display:inline-flex;border-radius:99px;padding:2px 8px;background:var(--blue-light);color:var(--blue);font-size:10px;font-weight:750}
 @media (max-width:900px){
-  .container{grid-template-columns:1fr;padding:16px}
-  .preview-panel{position:static}
+  .container{display:flex;flex-direction:column;padding:16px;gap:16px}
+  .planner-left{display:contents}
+  .input-panel{order:1}
+  .extracted-panel{order:2}
+  .preview-panel{order:3;width:100%;position:static}
+  .priority-panel{order:4}
+  .category-panel{order:5}
+  .planner-actions{order:6;width:100%}
   .header{padding:16px 20px}
+  .header-inner{align-items:flex-start;flex-direction:column}
+  .header-actions{width:100%;justify-content:flex-start;gap:6px}
+  .top-nav-btn{flex:1 1 calc(50% - 6px);text-align:center;padding:8px 10px;font-size:12px}
   .header h1{font-size:18px}
   .priority-grid{grid-template-columns:1fr 1fr}
   .board-shell{padding:0 16px 28px}
   .board-title{font-size:20px}
   .board-content{grid-template-columns:1fr}
   .board-side{position:static}
-  .board-grid{min-width:760px}
-  .board-main.board-scroll{overflow-x:auto}
-  .board-weekday{min-width:108px}
-  .board-day{min-width:108px;min-height:124px}
+  .board-grid{min-width:0}
+  .board-main.board-scroll{overflow-x:visible}
+  .board-weekday{min-width:0;padding:8px 2px;font-size:10px}
+  .board-day{min-width:0;min-height:76px;padding:6px;gap:4px}
+  .board-day-head{font-size:12px}
+  .board-day.today .board-day-number{min-width:22px;height:22px;padding:0 6px}
+  .board-task{display:none}
+  .board-day-count{display:inline-flex}
+  .upload-actions{width:100%;margin-left:0}
+  .upload-actions button{flex:1 1 140px}
+  .work-profile-shell{padding:0 16px 28px}
+  .wp-card.span-3,.wp-card.span-4,.wp-card.span-5,.wp-card.span-6,.wp-card.span-7{grid-column:span 12}
 }
 @media (max-width:480px){
+  body{font-size:14px}
+  .header{padding:14px 12px}
+  .container{padding:12px 10px 28px}
+  .panel{border-radius:12px}
+  .panel-header{padding:14px;align-items:flex-start;flex-wrap:wrap}
   .priority-grid{grid-template-columns:1fr}
   .btn-row{flex-direction:column}
   .project-row{flex-wrap:wrap}
+  textarea{min-height:90px;font-size:13px}
+  .file-upload-label{justify-content:center;text-align:center}
+  .board-shell{padding:0 10px 24px}
+  .panel-body{padding:14px}
+  .board-toolbar{gap:6px;align-items:center}
+  .board-action{padding:7px 9px;font-size:12px;flex:1 1 auto;text-align:center}
+  .board-toolbar .spacer{display:none}
+  .board-title{font-size:18px;width:100%;order:-1}
+  .board-weekday{font-size:9px}
+  .board-day{min-height:64px;padding:5px}
+  .board-day-head{font-size:11px}
+  .board-day-count{font-size:10px;padding:1px 5px}
+  .board-day-date{display:none}
+  .board-side{padding:12px}
+  .board-stats{gap:6px}
+  .selected-task-title{white-space:normal}
+  .wp-title{font-size:20px}
+  .wp-bar-row{grid-template-columns:76px minmax(0,1fr) 44px}
 }
 </style>
 </head>
@@ -442,18 +613,27 @@ input[type="color"]{
 
 <!-- ========== Header ========== -->
 <header class="header">
-  <h1>📅 个人智能日程规划助手</h1>
-  <p class="subtitle">把碎片任务变成站内月历看板</p>
-  <p class="tagline">输入一句任务，系统帮你判断是否完整、选择等级、分类项目，并加入自己的日历看板。</p>
+  <div class="header-inner">
+    <div class="header-copy">
+      <h1>📅 个人智能日程规划助手</h1>
+      <p class="subtitle">把碎片任务变成站内月历看板</p>
+      <p class="tagline">输入一句任务，系统帮你判断是否完整、选择等级、分类项目，并加入自己的日历看板。</p>
+    </div>
+    <div class="header-actions">
+      <button class="top-nav-btn active" id="plannerNavBtn" onclick="setAppPage('planner')">任务规划</button>
+      <button class="top-nav-btn" id="boardNavBtn" onclick="setAppPage('board')">日历看板</button>
+      <button class="top-nav-btn" id="workProfileNavBtn" onclick="setAppPage('work-profile')">我的工作画像</button>
+    </div>
+  </div>
 </header>
 
 <!-- ========== Main Container ========== -->
-<div class="container">
+<div class="container app-view" id="plannerPage">
 
   <!-- ===== Left: Input Panel ===== -->
-  <div>
+  <div class="planner-left">
     <!-- Task Input -->
-    <div class="panel">
+    <div class="panel input-panel">
       <div class="panel-header"><span class="icon">✏️</span> 任务输入</div>
       <div class="panel-body">
         <div class="form-group">
@@ -471,11 +651,13 @@ input[type="color"]{
     </div>
 
     <!-- Extracted Tasks Panel (shown after file upload) -->
-    <div class="panel" id="extractedTasksPanel" style="margin-top:16px;display:none">
+    <div class="panel extracted-panel" id="extractedTasksPanel" style="margin-top:16px;display:none">
       <div class="panel-header">
         <span class="icon">📋</span> AI 提取的任务（<span id="extractedTaskCount">0</span>个）
-        <button onclick="runSmartSchedule()" style="margin-left:auto;margin-right:6px;padding:6px 14px;font-size:12px;font-weight:600;border:1px solid var(--purple);border-radius:8px;background:var(--purple-light);color:var(--purple);cursor:pointer">🧠 智能排班</button>
-        <button onclick="batchWriteAll()" id="batchWriteBtn" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer">📌 全部加入看板</button>
+        <span class="upload-actions">
+          <button onclick="runSmartSchedule()" style="padding:6px 14px;font-size:12px;font-weight:600;border:1px solid var(--purple);border-radius:8px;background:var(--purple-light);color:var(--purple);cursor:pointer">🧠 智能排班</button>
+          <button onclick="batchWriteAll()" id="batchWriteBtn" style="padding:6px 14px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer">📌 全部加入看板</button>
+        </span>
       </div>
       <div class="panel-body" id="extractedTasksList">
         <div class="empty-state"><p>上传文件后 AI 会自动拆解任务</p></div>
@@ -484,7 +666,7 @@ input[type="color"]{
     </div>
 
     <!-- Priority Matrix -->
-    <div class="panel" style="margin-top:16px">
+    <div class="panel priority-panel" style="margin-top:16px">
       <div class="panel-header"><span class="icon">⚡</span> 四象限任务等级</div>
       <div class="panel-body">
         <div class="priority-grid" id="priorityGrid">
@@ -497,7 +679,7 @@ input[type="color"]{
     </div>
 
     <!-- Category + Project -->
-    <div class="panel" style="margin-top:16px">
+    <div class="panel category-panel" style="margin-top:16px">
       <div class="panel-header"><span class="icon">📂</span> 任务分类与项目</div>
       <div class="panel-body">
         <div class="form-group">
@@ -528,7 +710,7 @@ input[type="color"]{
     </div>
 
     <!-- Action Buttons -->
-    <div style="margin-top:16px">
+    <div class="planner-actions" style="margin-top:16px">
       <div class="btn-row">
         <button class="btn btn-primary" onclick="analyzeTask()">
           ✨ 分析任务
@@ -640,31 +822,18 @@ input[type="color"]{
       </div>
     </div>
 
-    <!-- ===== User Profile Panel (学习画像) ===== -->
-    <div class="panel schedule-panel" id="profilePanel" style="display:none">
-      <div class="panel-header">
-        <span class="icon">📊</span> 你的工作画像
-        <button onclick="loadProfile()" style="margin-left:auto;padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);cursor:pointer">🔄 刷新</button>
-      </div>
-      <div class="panel-body" id="profileContent">
-        <div class="empty-state">
-          <div class="emoji">📝</div>
-          <p>还没有足够的数据<br>完成更多任务后这里会显示你的工作画像</p>
-        </div>
-      </div>
-    </div>
-
   </div>
 
 </div>
 
 <!-- ========== Local Calendar Board ========== -->
-<section class="board-shell">
+<section class="board-shell app-view" id="boardPage" hidden>
   <div class="panel">
     <div class="panel-header board-toolbar">
       <span class="icon">🗓️</span>
       <span class="board-title" id="boardTitle">我的日历看板</span>
       <span class="spacer"></span>
+      <button class="board-action" onclick="setAppPage('planner')">返回任务规划</button>
       <button class="board-action" onclick="createQuickBoardTask()">＋</button>
       <button class="board-action" onclick="shiftBoardMonth(-1)">‹</button>
       <button class="board-action" onclick="goBoardToday()">Today</button>
@@ -705,6 +874,80 @@ input[type="color"]{
   </div>
 </section>
 
+<!-- ========== Work Profile ========== -->
+<section class="work-profile-shell app-view" id="workProfilePage" hidden>
+  <div class="panel">
+    <div class="panel-header wp-toolbar">
+      <span class="icon">📊</span>
+      <div>
+        <div class="wp-title">我的工作画像</div>
+        <div class="wp-subtitle">了解你的时间、精力、任务成果和长期成长</div>
+      </div>
+      <span class="spacer"></span>
+      <button class="board-action" onclick="setAppPage('planner')">返回任务规划</button>
+    </div>
+    <div class="panel-body">
+      <div class="wp-controls">
+        <div class="wp-segment" id="wpPeriodSwitcher">
+          <button data-period="day" onclick="setWorkProfilePeriod('day')">每日</button>
+          <button data-period="week" class="active" onclick="setWorkProfilePeriod('week')">每周</button>
+          <button data-period="month" onclick="setWorkProfilePeriod('month')">每月</button>
+          <button data-period="year" onclick="setWorkProfilePeriod('year')">年度</button>
+        </div>
+        <button class="wp-control" onclick="shiftWorkProfilePeriod(-1)">‹</button>
+        <button class="wp-control" onclick="goWorkProfileToday()">今天</button>
+        <button class="wp-control" onclick="shiftWorkProfilePeriod(1)">›</button>
+        <select class="wp-select" id="wpProjectFilter" onchange="renderWorkProfile()"></select>
+        <select class="wp-select" id="wpStatusFilter" onchange="renderWorkProfile()">
+          <option value="all">全部状态</option>
+          <option value="completed">已完成</option>
+          <option value="in_progress">进行中</option>
+          <option value="delayed">已延期</option>
+          <option value="cancelled">已取消</option>
+        </select>
+      </div>
+      <div id="workProfileRange" class="wp-note" style="margin-bottom:14px"></div>
+      <div id="workProfileContent">
+        <div class="empty-state"><div class="emoji">📊</div><p>正在读取看板任务...</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<aside class="wp-drawer" id="workProfileDrawer" aria-label="任务明细">
+  <div class="wp-drawer-head">
+    <div>
+      <div class="wp-card-title" id="wpDrawerTitle" style="margin:0">任务明细</div>
+      <div class="wp-note" id="wpDrawerSub"></div>
+    </div>
+    <button class="conflict-close" onclick="closeWorkProfileDrawer()" aria-label="关闭">×</button>
+  </div>
+  <div class="wp-drawer-body" id="wpDrawerBody"></div>
+</aside>
+
+<!-- ========== Conflict Recommendation Modal ========== -->
+<div class="conflict-modal" id="conflictModal" role="dialog" aria-modal="true" aria-labelledby="conflictModalTitle">
+  <div class="conflict-dialog">
+    <div class="conflict-head">
+      <div>
+        <div class="conflict-title" id="conflictModalTitle">时间冲突，需要调整</div>
+        <div class="conflict-sub" id="conflictModalSubtitle">这个时间段已有任务。可以选择推荐时间，或强行添加。</div>
+      </div>
+      <button class="conflict-close" onclick="closeConflictModal()" aria-label="关闭">×</button>
+    </div>
+    <div class="conflict-body">
+      <div class="conflict-section-title">冲突任务</div>
+      <div class="conflict-list" id="conflictList"></div>
+      <div class="conflict-section-title">推荐时间段</div>
+      <div class="recommendation-list" id="recommendationList"></div>
+    </div>
+    <div class="conflict-actions">
+      <button class="conflict-action conflict-cancel" onclick="closeConflictModal()">取消</button>
+      <button class="conflict-action conflict-force" onclick="forceAddConflictTask()">强行添加</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ==================== State ====================
 let state = {
@@ -728,12 +971,72 @@ const categoryColors = {
   '提醒': '#8e8e93',
 };
 
+const taskTypes = {
+  study: { label: '学习', color: '#0071e3', energy: 4, recovery: 0 },
+  work: { label: '工作', color: '#ff9500', energy: 4, recovery: 0 },
+  project: { label: '项目', color: '#af52de', energy: 4, recovery: 0 },
+  content_creation: { label: '内容创作', color: '#ff2d55', energy: 4, recovery: 0 },
+  communication_meeting: { label: '沟通会议', color: '#ff3b30', energy: 3, recovery: 0 },
+  life: { label: '生活事务', color: '#34c759', energy: 2, recovery: 1 },
+  rest_recovery: { label: '休息恢复', color: '#5ac8fa', energy: 1, recovery: 5 },
+  exercise: { label: '身体锻炼', color: '#30d158', energy: 3, recovery: 4 },
+};
+
+const categoryToTaskType = {
+  '学习': 'study',
+  '工作': 'work',
+  '项目': 'project',
+  '内容创作': 'content_creation',
+  '会议': 'communication_meeting',
+  '沟通会议': 'communication_meeting',
+  '生活': 'life',
+  '生活事务': 'life',
+  '提醒': 'life',
+  '休息恢复': 'rest_recovery',
+  '身体锻炼': 'exercise',
+};
+
 const priorityStyles = {
   'P1': { cls: 'p1', label: '紧急且重要' },
   'P2': { cls: 'p2', label: '重要但不紧急' },
   'P3': { cls: 'p3', label: '紧急但不重要' },
   'P4': { cls: 'p4', label: '不紧急且不重要' },
 };
+
+const taskStatusLabels = {
+  planned: '计划中',
+  in_progress: '进行中',
+  completed: '已完成',
+  delayed: '已延期',
+  cancelled: '已取消',
+};
+
+function setAppPage(page, options = {}) {
+  const nextPage = page === 'board' || page === 'work-profile' ? page : 'planner';
+  const plannerPage = document.getElementById('plannerPage');
+  const boardPage = document.getElementById('boardPage');
+  const workProfilePage = document.getElementById('workProfilePage');
+  const plannerBtn = document.getElementById('plannerNavBtn');
+  const boardBtn = document.getElementById('boardNavBtn');
+  const workProfileBtn = document.getElementById('workProfileNavBtn');
+
+  if (plannerPage) plannerPage.hidden = nextPage !== 'planner';
+  if (boardPage) boardPage.hidden = nextPage !== 'board';
+  if (workProfilePage) workProfilePage.hidden = nextPage !== 'work-profile';
+  if (plannerBtn) plannerBtn.classList.toggle('active', nextPage === 'planner');
+  if (boardBtn) boardBtn.classList.toggle('active', nextPage === 'board');
+  if (workProfileBtn) workProfileBtn.classList.toggle('active', nextPage === 'work-profile');
+
+  if (nextPage === 'board') renderCalendarBoard();
+  if (nextPage === 'work-profile') renderWorkProfile();
+  if (!options.skipHash) {
+    const hash = nextPage === 'board' ? '#board' : nextPage === 'work-profile' ? '#work-profile' : '#planner';
+    if (window.location.hash !== hash) {
+      history.pushState(null, '', hash);
+    }
+  }
+  window.scrollTo({ top: 0, behavior: options.instant ? 'auto' : 'smooth' });
+}
 
 // ==================== Local Calendar Board ====================
 const BOARD_STORAGE_KEY = 'calendarAssistant.boardTasks.v1';
@@ -752,6 +1055,88 @@ function pad2(n) {
 
 function toDateISO(date) {
   return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function parseTaskDateTime(dateISO, timeStr = '00:00') {
+  const d = new Date(`${dateISO || toDateISO(new Date())}T${timeStr || '00:00'}`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function minutesBetween(startTime, endTime) {
+  if (!startTime || !endTime || !startTime.includes(':') || !endTime.includes(':')) return 0;
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return diff > 0 ? diff : 0;
+}
+
+function inferTaskType(data = {}) {
+  if (data.taskType && taskTypes[data.taskType]) return data.taskType;
+  return categoryToTaskType[data.category] || 'work';
+}
+
+function inferTaskStatus(data = {}) {
+  const completion = Number(data.completionPercentage ?? (data.done ? 100 : 0));
+  if (data.status === 'cancelled') return 'cancelled';
+  if (completion >= 100 || data.done) return 'completed';
+  const end = parseTaskDateTime(data.dateISO, data.endTime);
+  if (end && end < new Date()) return 'delayed';
+  if (completion > 0) return 'in_progress';
+  return data.status || 'planned';
+}
+
+function estimateTaskEnergy(task) {
+  const type = taskTypes[task.taskType] || taskTypes.work;
+  let cost = type.energy;
+  let recovery = type.recovery;
+  const reasons = [`基础类型为${type.label}`];
+  const mins = task.actualDurationMinutes || task.durationMinutes || 0;
+  if (mins >= 180) { cost += 1; reasons.push('任务时长超过3小时'); }
+  else if (mins >= 120) { cost += 0.5; reasons.push('任务时长超过2小时'); }
+  if ((task.rescheduleCount || 0) >= 2) { cost += 0.5; reasons.push('多次重新安排'); }
+  if (task.priority === 'P1') { cost += 0.5; reasons.push('优先级较高'); }
+  return {
+    aiEnergyCost: Math.max(1, Math.min(5, Number(task.aiEnergyCost || cost))),
+    aiRecoveryValue: Math.max(0, Math.min(5, Number(task.aiRecoveryValue ?? recovery))),
+    aiEnergyConfidence: Number(task.aiEnergyConfidence || 0.68),
+    aiEnergyReason: task.aiEnergyReason || reasons.join('；'),
+  };
+}
+
+function normalizeBoardTask(task) {
+  const duration = Number(task.durationMinutes || minutesBetween(task.startTime, task.endTime) || 0);
+  const completion = Math.max(0, Math.min(100, Number(task.completionPercentage ?? (task.done ? 100 : 0))));
+  const taskType = inferTaskType(task);
+  const status = inferTaskStatus({ ...task, completionPercentage: completion, taskType });
+  const actualDurationMinutes = Number(task.actualDurationMinutes ?? duration);
+  const actualDurationSource = task.actualDurationSource || (task.actualDurationMinutes ? 'manual' : 'estimated');
+  const end = parseTaskDateTime(task.dateISO, task.endTime);
+  const completedAt = task.completedAt ? new Date(task.completedAt) : null;
+  const compare = completedAt || new Date();
+  const isDelayed = status === 'delayed' || Boolean(end && compare > end && completion < 100);
+  const energy = estimateTaskEnergy({ ...task, taskType, durationMinutes: duration, actualDurationMinutes });
+  return {
+    ...task,
+    taskType,
+    taskTypeLabel: taskTypes[taskType].label,
+    category: task.category || taskTypes[taskType].label,
+    projectName: task.projectName || '未归属项目',
+    durationMinutes: duration,
+    estimatedDurationMinutes: duration,
+    actualDurationMinutes,
+    actualDurationSource,
+    completionPercentage: completion,
+    status,
+    statusLabel: taskStatusLabels[status] || status,
+    done: completion >= 100,
+    completedAt: completion >= 100 ? (task.completedAt || new Date().toISOString()) : task.completedAt,
+    isDelayed,
+    delayMinutes: isDelayed && end ? Math.max(0, Math.round((compare - end) / 60000)) : 0,
+    rescheduleCount: Number(task.rescheduleCount || 0),
+    ...energy,
+    energyInvestment: actualDurationMinutes * energy.aiEnergyCost,
+    recoveryInvestment: actualDurationMinutes * energy.aiRecoveryValue,
+  };
 }
 
 function getWeekStart(date) {
@@ -819,7 +1204,7 @@ function buildBoardTask(data) {
     endTime = pad2(Math.floor(total / 60) % 24) + ':' + pad2(total % 60);
   }
 
-  return {
+  const baseTask = {
     id: data.id || crypto.randomUUID(),
     title: data.title || '未命名任务',
     dateISO,
@@ -835,7 +1220,22 @@ function buildBoardTask(data) {
     reason: data.reason || '',
     done: Boolean(data.done),
     createdAt: data.createdAt || new Date().toISOString(),
+    taskType: data.taskType || inferTaskType(data),
+    completionPercentage: data.completionPercentage ?? (data.done ? 100 : 0),
+    status: data.status || '',
+    actualDurationMinutes: data.actualDurationMinutes ?? null,
+    actualDurationSource: data.actualDurationSource || '',
+    originalScheduledStart: data.originalScheduledStart || null,
+    originalScheduledEnd: data.originalScheduledEnd || null,
+    rescheduleCount: data.rescheduleCount || 0,
+    aiEnergyCost: data.aiEnergyCost || null,
+    aiRecoveryValue: data.aiRecoveryValue ?? null,
+    aiEnergyConfidence: data.aiEnergyConfidence || null,
+    aiEnergyReason: data.aiEnergyReason || '',
+    isMilestone: Boolean(data.isMilestone),
+    resultSummary: data.resultSummary || '',
   };
+  return normalizeBoardTask(baseTask);
 }
 
 function addTaskToBoard(taskData) {
@@ -845,7 +1245,7 @@ function addTaskToBoard(taskData) {
     return null;
   }
 
-  const tasks = loadBoardTasks();
+  const tasks = loadBoardTasks().map(normalizeBoardTask);
   tasks.push(task);
   tasks.sort((a, b) => (a.dateISO + a.startTime).localeCompare(b.dateISO + b.startTime));
   saveBoardTasks(tasks);
@@ -853,6 +1253,130 @@ function addTaskToBoard(taskData) {
   selectedBoardDateISO = task.dateISO;
   renderCalendarBoard();
   return task;
+}
+
+let _pendingConflictResolution = null;
+
+function closeConflictModal() {
+  const modal = document.getElementById('conflictModal');
+  if (modal) modal.classList.remove('open');
+  if (_pendingConflictResolution) {
+    _pendingConflictResolution.resolve(null);
+    _pendingConflictResolution = null;
+  }
+}
+
+function formatConflictDate(dateISO) {
+  const label = formatBoardDateLabel(dateISO);
+  return label.sub ? `${label.title} (${label.sub})` : dateISO;
+}
+
+function openConflictModal(task, conflictData) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('conflictModal');
+    const subtitle = document.getElementById('conflictModalSubtitle');
+    const conflictList = document.getElementById('conflictList');
+    const recommendationList = document.getElementById('recommendationList');
+    const conflicts = conflictData.conflicts || [];
+    const recommendations = conflictData.recommendations || [];
+
+    _pendingConflictResolution = { resolve, task, recommendations };
+    subtitle.textContent = `${task.title} 的 ${task.dateISO} ${task.startTime}-${task.endTime} 与已有任务冲突。`;
+
+    conflictList.innerHTML = conflicts.length
+      ? conflicts.map(item => `<div class="conflict-item">
+          <strong>${escapeHtml(item.title || '未命名任务')}</strong><br>
+          ${escapeHtml(formatConflictDate(item.dateISO))} · ${escapeHtml(item.startTime)}-${escapeHtml(item.endTime)}
+        </div>`).join('')
+      : '<div class="conflict-empty">没有可展示的冲突详情</div>';
+
+    recommendationList.innerHTML = recommendations.length
+      ? recommendations.map((item, index) => `<div class="recommendation-item">
+          <div class="recommendation-time">${escapeHtml(formatConflictDate(item.dateISO))}<br>${escapeHtml(item.startTime)}-${escapeHtml(item.endTime)}</div>
+          <div class="recommendation-reason">${escapeHtml(item.reason || '该时间段满足任务所需连续时长')}</div>
+          <button class="recommendation-btn" onclick="selectConflictRecommendation(${index})">选择此时间</button>
+        </div>`).join('')
+      : '<div class="conflict-empty">未来 7 天内没有找到足够长的连续空闲时间，可以取消后手动调整，或强行添加。</div>';
+
+    modal.classList.add('open');
+  });
+}
+
+function selectConflictRecommendation(index) {
+  if (!_pendingConflictResolution) return;
+  const recommendation = _pendingConflictResolution.recommendations[index];
+  const task = _pendingConflictResolution.task;
+  const resolve = _pendingConflictResolution.resolve;
+  _pendingConflictResolution = null;
+  document.getElementById('conflictModal')?.classList.remove('open');
+  if (!recommendation) {
+    resolve(null);
+    return;
+  }
+  resolve({
+    ...task,
+    dateISO: recommendation.dateISO,
+    startTime: recommendation.startTime,
+    endTime: recommendation.endTime,
+    durationMinutes: recommendation.durationMinutes || task.durationMinutes,
+    reason: recommendation.reason || task.reason,
+  });
+}
+
+function forceAddConflictTask() {
+  if (!_pendingConflictResolution) return;
+  const task = _pendingConflictResolution.task;
+  const resolve = _pendingConflictResolution.resolve;
+  _pendingConflictResolution = null;
+  document.getElementById('conflictModal')?.classList.remove('open');
+  resolve(task);
+}
+
+async function addTaskToBoardWithConflictCheck(taskData, options = {}) {
+  const task = buildBoardTask(taskData);
+  if (options.skipConflictCheck) {
+    return addTaskToBoard(task);
+  }
+
+  try {
+    const resp = await fetch('/api/board/conflicts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task,
+        existingTasks: loadBoardTasks(),
+        days: 7,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.status === 'error') {
+      alert(data.message || '无法检测时间冲突');
+      return null;
+    }
+    if (!data.hasConflict) {
+      return addTaskToBoard(task);
+    }
+
+    const selectedTask = await openConflictModal(task, data);
+    if (!selectedTask) return null;
+    return addTaskToBoard(selectedTask);
+  } catch (err) {
+    alert('冲突检测失败：' + err.message);
+    return null;
+  }
+}
+
+async function addTaskToBoardAndLog(taskData, options = {}) {
+  const boardTask = await addTaskToBoardWithConflictCheck(taskData, options);
+  if (!boardTask) return null;
+  await logTaskEvent('task_created', {
+    taskId: boardTask.id,
+    title: boardTask.title,
+    start: `${boardTask.dateISO}T${boardTask.startTime}`,
+    end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
+    durationMinutes: boardTask.durationMinutes,
+  });
+  return boardTask;
 }
 
 function removeBoardTask(id) {
@@ -864,16 +1388,31 @@ async function toggleBoardTask(id) {
   const tasks = loadBoardTasks();
   const task = tasks.find(item => item.id === id);
   if (!task) return;
-  task.done = !task.done;
+  const next = normalizeBoardTask(task).completionPercentage >= 100 ? 0 : 100;
+  await updateBoardTaskProgress(id, next);
+}
+
+async function updateBoardTaskProgress(id, percentage) {
+  const tasks = loadBoardTasks();
+  const task = tasks.find(item => item.id === id);
+  if (!task) return;
+  const pct = Math.max(0, Math.min(100, Number(percentage)));
+  task.completionPercentage = pct;
+  task.done = pct >= 100;
+  task.status = pct >= 100 ? 'completed' : (pct > 0 ? 'in_progress' : inferTaskStatus(task));
+  task.completedAt = pct >= 100 ? (task.completedAt || new Date().toISOString()) : null;
+  const normalized = normalizeBoardTask(task);
+  Object.assign(task, normalized);
   saveBoardTasks(tasks);
   renderCalendarBoard();
   if (task.done) {
     await logTaskEvent('task_completed', {
       taskId: task.id,
       title: task.title,
-      actualDurationMinutes: task.durationMinutes,
+      actualDurationMinutes: task.actualDurationMinutes || task.durationMinutes,
     });
   }
+  if (window.location.hash === '#work-profile') renderWorkProfile();
 }
 
 function shiftBoardMonth(delta) {
@@ -887,14 +1426,14 @@ function goBoardToday() {
   renderCalendarBoard();
 }
 
-function createQuickBoardTask() {
+async function createQuickBoardTask() {
   const title = prompt('任务标题');
   if (!title) return;
   const today = new Date();
   const dateISO = prompt('日期（YYYY-MM-DD）', toDateISO(today));
   if (!dateISO) return;
   const startTime = prompt('开始时间（HH:MM）', '09:00') || '09:00';
-  addTaskToBoard({
+  await addTaskToBoardAndLog({
     title,
     dateISO,
     startTime,
@@ -951,8 +1490,8 @@ function renderCalendarBoard() {
               ${task.reason ? '<br>💡 ' + escapeHtml(task.reason) : ''}
             </div>
             <div class="board-task-actions">
-              <button class="board-mini-btn" onclick="toggleBoardTask('${task.id}')">${task.done ? '恢复' : '完成'}</button>
-              <button class="board-mini-btn" onclick="removeBoardTask('${task.id}')">删除</button>
+              <button class="board-mini-btn" onclick="event.stopPropagation();toggleBoardTask('${task.id}')">${task.done ? '恢复' : '完成'}</button>
+              <button class="board-mini-btn" onclick="event.stopPropagation();removeBoardTask('${task.id}')">删除</button>
             </div>
           </div>`;
         }).join('')
@@ -963,6 +1502,7 @@ function renderCalendarBoard() {
         <span class="board-day-number">${day.getDate()}</span>
         <span class="board-day-date">${inMonth ? '' : day.toLocaleString('en-US', { month: 'short' })}</span>
       </div>
+      ${dayTasks.length ? `<div class="board-day-count">${dayTasks.length}项</div>` : ''}
       ${taskHtml}
     </div>`;
   }).join('');
@@ -972,6 +1512,7 @@ function renderCalendarBoard() {
 }
 
 function renderSelectedBoardTasks(tasks = loadBoardTasks()) {
+  tasks = tasks.map(normalizeBoardTask);
   const title = document.getElementById('selectedBoardDateTitle');
   const sub = document.getElementById('selectedBoardDateSub');
   const totalEl = document.getElementById('selectedBoardTotal');
@@ -1005,10 +1546,20 @@ function renderSelectedBoardTasks(tasks = loadBoardTasks()) {
       <button class="task-check ${task.done ? 'done' : ''}" onclick="toggleBoardTask('${task.id}')" aria-label="${task.done ? '恢复任务' : '完成任务'}">${task.done ? '✓' : ''}</button>
       <div class="selected-task-info">
         <div class="selected-task-title">${escapeHtml(task.title)}</div>
-        <div class="selected-task-detail">${escapeHtml(getTaskBrief(task))}</div>
+        <div class="selected-task-detail">${escapeHtml(getTaskBrief(task))} · ${task.completionPercentage}% · ${escapeHtml(task.statusLabel || task.status)}</div>
+        <div class="wp-progress-buttons">
+          ${[0,25,50,75,100].map(p => `<button class="${task.completionPercentage === p ? 'active' : ''}" onclick="event.stopPropagation();updateBoardTaskProgress('${task.id}', ${p})">${p}%</button>`).join('')}
+          <button onclick="event.stopPropagation();promptCustomProgress('${task.id}', ${task.completionPercentage})">自定义</button>
+        </div>
       </div>
     </div>
   `).join('');
+}
+
+function promptCustomProgress(id, current) {
+  const value = prompt('完成百分比（0-100）', String(current || 0));
+  if (value === null) return;
+  updateBoardTaskProgress(id, Number(value));
 }
 
 // ==================== Priority Selection ====================
@@ -1635,7 +2186,7 @@ async function writeToCalendar() {
   btn.textContent = '⏳ 正在加入...';
   msg.style.display = 'none';
 
-  const task = addTaskToBoard({
+  const task = await addTaskToBoardAndLog({
     title: parsed.taskTitle,
     date: parsed.date,
     startTime: parsed.startTime || '09:00',
@@ -1654,14 +2205,6 @@ async function writeToCalendar() {
     btn.textContent = '📌 加入日历看板';
     return;
   }
-
-  await logTaskEvent('task_created', {
-    taskId: task.id,
-    title: task.title,
-    start: `${task.dateISO}T${task.startTime}`,
-    end: task.endTime ? `${task.dateISO}T${task.endTime}` : '',
-    durationMinutes: task.durationMinutes,
-  });
 
   msg.style.display = '';
   msg.style.background = '#e8f8ed';
@@ -1878,7 +2421,7 @@ async function writeSingleTask(index, btn) {
   btn.disabled = true;
   btn.textContent = '⏳...';
 
-  const boardTask = addTaskToBoard({
+  const boardTask = await addTaskToBoardAndLog({
     title: t.title || '任务',
     dateISO: t.dateISO,
     startTime: t.startTime || '09:00',
@@ -1891,12 +2434,6 @@ async function writeSingleTask(index, btn) {
   });
 
   if (boardTask) {
-    await logTaskEvent('task_created', {
-      taskId: boardTask.id,
-      title: boardTask.title,
-      start: `${boardTask.dateISO}T${boardTask.startTime}`,
-      end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
-    });
     t._written = true;
     t._taskId = boardTask.id;
     renderExtractedTasks();
@@ -1922,7 +2459,7 @@ async function batchWriteAll() {
   batchBtn.textContent = '⏳ 加入中...';
 
   for (const t of pending) {
-    const boardTask = addTaskToBoard({
+    const boardTask = await addTaskToBoardAndLog({
       title: t.title || '任务',
       dateISO: t.dateISO,
       startTime: t.startTime || '09:00',
@@ -1934,20 +2471,18 @@ async function batchWriteAll() {
       location: t.location || ''
     });
     if (boardTask) {
-      await logTaskEvent('task_created', {
-        taskId: boardTask.id,
-        title: boardTask.title,
-        start: `${boardTask.dateISO}T${boardTask.startTime}`,
-        end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
-      });
       t._written = true;
       t._taskId = boardTask.id;
       renderExtractedTasks();
+    } else {
+      break;
     }
   }
 
-  batchBtn.textContent = '✅ 全部完成';
-  batchBtn.style.background = 'var(--green)';
+  const remaining = _extractedTasks.some(t => !t._written && t.dateISO && t.startTime);
+  batchBtn.disabled = false;
+  batchBtn.textContent = remaining ? '📌 全部加入看板' : '✅ 全部完成';
+  batchBtn.style.background = remaining ? 'var(--blue)' : 'var(--green)';
 }
 
 // ==================== Smart Schedule (智能排班) ====================
@@ -1983,10 +2518,7 @@ async function completeTask(taskId, index, btn) {
   btn.textContent = '✅ 已完成';
   btn.disabled = false;
 
-  // Refresh the profile panel if visible
-  if (document.getElementById('profilePanel')?.style.display !== 'none') {
-    loadProfile();
-  }
+  if (window.location.hash === '#work-profile') renderWorkProfile();
 }
 
 async function runSmartSchedule() {
@@ -2122,7 +2654,7 @@ async function writeScheduledItem(index, btn) {
   btn.disabled = true;
   btn.textContent = '⏳...';
 
-  const boardTask = addTaskToBoard({
+  const boardTask = await addTaskToBoardAndLog({
     title: item.title || '任务',
     dateISO: item.suggestedDate,
     startTime: item.suggestedStart || '09:00',
@@ -2135,12 +2667,6 @@ async function writeScheduledItem(index, btn) {
   });
 
   if (boardTask) {
-    await logTaskEvent('task_created', {
-      taskId: boardTask.id,
-      title: boardTask.title,
-      start: `${boardTask.dateISO}T${boardTask.startTime}`,
-      end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
-    });
     item._written = true;
     btn.className = 'schedule-write-btn written';
     btn.textContent = '✅ 已加入';
@@ -2167,7 +2693,7 @@ async function writeScheduledAll() {
   btn.textContent = '⏳ 加入中...';
 
   for (const item of pending) {
-    const boardTask = addTaskToBoard({
+    const boardTask = await addTaskToBoardAndLog({
       title: item.title || '任务',
       dateISO: item.suggestedDate,
       startTime: item.suggestedStart || '09:00',
@@ -2179,113 +2705,547 @@ async function writeScheduledAll() {
       reason: item.reason || ''
     });
     if (boardTask) {
-      await logTaskEvent('task_created', {
-        taskId: boardTask.id,
-        title: boardTask.title,
-        start: `${boardTask.dateISO}T${boardTask.startTime}`,
-        end: boardTask.endTime ? `${boardTask.dateISO}T${boardTask.endTime}` : '',
-      });
       item._written = true;
+    } else {
+      break;
     }
   }
 
   renderSchedule();
-  btn.textContent = '✅ 全部完成';
-  btn.style.background = 'var(--green)';
+  const remaining = _scheduleData.some(s => !s._written && s.suggestedDate && s.suggestedStart);
+  btn.disabled = false;
+  btn.textContent = remaining ? '📌 确认全部加入看板' : '✅ 全部完成';
+  btn.style.background = remaining ? 'var(--blue)' : 'var(--green)';
 }
 
-// ==================== User Profile Display ====================
-async function loadProfile() {
-  const panel = document.getElementById('profilePanel');
-  const content = document.getElementById('profileContent');
-  panel.style.display = '';
+// ==================== Work Profile MVP ====================
+const WORK_PROFILE_SUMMARY_KEY = 'calendarAssistant.workProfileSummary.v1';
+let workProfileState = {
+  periodType: 'week',
+  anchorDate: new Date(),
+  profile: null,
+};
 
-  try {
-    const resp = await fetch('/api/profile?days=30');
-    const data = await resp.json();
-
-    if (data.status === 'ok' && data.stats && data.stats.total_tasks > 0) {
-      const s = data.stats;
-
-      // Build heatmap bars
-      const maxHour = Math.max(1, ...s.hour_heatmap);
-      let heatmapHtml = '<div style="margin-top:8px">';
-      for (let h = 6; h <= 22; h++) {
-        const v = s.hour_heatmap[h] || 0;
-        const pct = Math.round(v / maxHour * 100);
-        heatmapHtml += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;font-size:11px">
-          <span style="width:32px;text-align:right;color:var(--text-tertiary)">${String(h).padStart(2,'0')}:00</span>
-          <span style="flex:1;height:14px;background:var(--gray-light);border-radius:7px;overflow:hidden">
-            <span style="display:block;height:100%;background:var(--blue);border-radius:7px;width:${pct}%;transition:width 0.3s"></span>
-          </span>
-          <span style="width:24px;font-size:10px;color:var(--text-secondary)">${v}</span>
-        </div>`;
-      }
-      heatmapHtml += '</div>';
-
-      // Build category breakdown
-      let catHtml = '';
-      const catEmoji = {'学习':'📚','工作':'💼','项目':'🚀','生活':'🏠','内容创作':'🎨','会议':'💬','提醒':'🔔'};
-      for (const [cat, cnt] of Object.entries(s.by_category || {}).sort((a,b) => b[1]-a[1])) {
-        const emoji = catEmoji[cat] || '';
-        const pct = Math.round(cnt / s.total_tasks * 100);
-        catHtml += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px">
-          <span>${emoji} ${cat}</span>
-          <span style="flex:1;height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
-            <span style="display:block;height:100%;background:var(--blue);border-radius:4px;width:${pct}%"></span>
-          </span>
-          <span style="color:var(--text-secondary);font-size:11px">${cnt}个 (${pct}%)</span>
-        </div>`;
-      }
-
-      content.innerHTML = `
-        <div style="margin-bottom:16px">
-          <div style="display:flex;gap:16px;margin-bottom:12px">
-            <div style="flex:1;text-align:center;padding:12px;background:var(--blue-light);border-radius:10px">
-              <div style="font-size:24px;font-weight:700;color:var(--blue)">${s.total_tasks}</div>
-              <div style="font-size:11px;color:var(--text-secondary)">总任务数</div>
-            </div>
-            <div style="flex:1;text-align:center;padding:12px;background:var(--green-light);border-radius:10px">
-              <div style="font-size:24px;font-weight:700;color:#1a7d36">${s.completed_tasks}</div>
-              <div style="font-size:11px;color:var(--text-secondary)">已完成</div>
-            </div>
-            <div style="flex:1;text-align:center;padding:12px;background:var(--purple-light);border-radius:10px">
-              <div style="font-size:24px;font-weight:700;color:var(--purple)">${s.completion_rate}%</div>
-              <div style="font-size:11px;color:var(--text-secondary)">完成率</div>
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:16px">
-          <div class="pf-label" style="margin-bottom:8px">📊 任务分类分布</div>
-          ${catHtml || '<span style="font-size:12px;color:var(--text-tertiary)">暂无分类数据</span>'}
-        </div>
-
-        <div style="margin-bottom:16px">
-          <div class="pf-label" style="margin-bottom:8px">⏰ 活跃时段热力图（已完成任务）</div>
-          ${heatmapHtml}
-        </div>
-
-        <div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:8px">
-          📊 统计最近${s.days}天 · 每次完成任务后自动更新
-        </div>
-      `;
-    } else {
-      content.innerHTML = `<div class="empty-state">
-        <div class="emoji">📝</div>
-        <p>还没有足够的数据<br>完成更多任务后这里会显示你的工作画像</p>
-      </div>`;
-    }
-  } catch (err) {
-    content.innerHTML = `<div class="empty-state" style="color:var(--red)">
-      <p>加载失败：${err.message}</p>
-    </div>`;
+function getWorkProfileRange(periodType = workProfileState.periodType, anchor = workProfileState.anchorDate) {
+  const d = new Date(anchor);
+  d.setHours(0, 0, 0, 0);
+  let start = new Date(d);
+  let end = new Date(d);
+  if (periodType === 'week') {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    start.setDate(d.getDate() + diff);
+    end = new Date(start); end.setDate(start.getDate() + 6);
+  } else if (periodType === 'month') {
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  } else if (periodType === 'year') {
+    start = new Date(d.getFullYear(), 0, 1);
+    end = new Date(d.getFullYear(), 11, 31);
   }
+  return { start, end, startDate: toDateISO(start), endDate: toDateISO(end) };
 }
 
-// Auto-load profile on page load
+function setWorkProfilePeriod(period) {
+  workProfileState.periodType = period;
+  document.querySelectorAll('#wpPeriodSwitcher button').forEach(btn => btn.classList.toggle('active', btn.dataset.period === period));
+  renderWorkProfile();
+}
+
+function shiftWorkProfilePeriod(delta) {
+  const d = new Date(workProfileState.anchorDate);
+  const p = workProfileState.periodType;
+  if (p === 'day') d.setDate(d.getDate() + delta);
+  else if (p === 'week') d.setDate(d.getDate() + delta * 7);
+  else if (p === 'month') d.setMonth(d.getMonth() + delta);
+  else d.setFullYear(d.getFullYear() + delta);
+  workProfileState.anchorDate = d;
+  renderWorkProfile();
+}
+
+function goWorkProfileToday() {
+  workProfileState.anchorDate = new Date();
+  renderWorkProfile();
+}
+
+function pct(part, total) { return total ? Math.round(part / total * 1000) / 10 : 0; }
+function hours(minutes) { return Math.round((minutes || 0) / 6) / 10; }
+function inDateRange(task, startDate, endDate) { return task.dateISO >= startDate && task.dateISO <= endDate; }
+
+function groupDistribution(tasks, key) {
+  const groups = {};
+  tasks.forEach(task => {
+    const groupKey = task[key] || '未分类';
+    if (!groups[groupKey]) groups[groupKey] = { key: groupKey, minutes: 0, energy: 0, tasks: 0, completed: 0 };
+    groups[groupKey].minutes += task.actualDurationMinutes || 0;
+    groups[groupKey].energy += task.energyInvestment || 0;
+    groups[groupKey].tasks += 1;
+    if (task.status === 'completed') groups[groupKey].completed += 1;
+  });
+  const totalMinutes = Object.values(groups).reduce((sum, item) => sum + item.minutes, 0);
+  const totalEnergy = Object.values(groups).reduce((sum, item) => sum + item.energy, 0);
+  return Object.values(groups).map(item => {
+    const type = taskTypes[item.key];
+    return {
+      ...item,
+      label: type?.label || item.key,
+      color: type?.color || '#8e8e93',
+      hours: hours(item.minutes),
+      timeShare: pct(item.minutes, totalMinutes),
+      energyShare: pct(item.energy, totalEnergy),
+      energy: Math.round(item.energy),
+    };
+  }).sort((a, b) => b.minutes - a.minutes);
+}
+
+function buildLocalWorkProfile(tasks, options = {}) {
+  const range = getWorkProfileRange(options.periodType || 'week', workProfileState.anchorDate);
+  let normalized = tasks.map(normalizeBoardTask);
+  let periodTasks = normalized.filter(task => inDateRange(task, range.startDate, range.endDate));
+  if (options.projectName) periodTasks = periodTasks.filter(task => task.projectName === options.projectName);
+  if (options.status && options.status !== 'all') periodTasks = periodTasks.filter(task => task.status === options.status);
+  const effective = periodTasks.filter(task => task.status !== 'cancelled');
+  const completed = effective.filter(task => task.status === 'completed');
+  const delayed = effective.filter(task => task.isDelayed);
+  const plannedMinutes = effective.reduce((sum, task) => sum + (task.durationMinutes || 0), 0);
+  const actualMinutes = effective.reduce((sum, task) => sum + (task.actualDurationMinutes || 0), 0);
+  const weighted = effective.reduce((sum, task) => sum + task.completionPercentage, 0) / Math.max(effective.length, 1);
+  const activeDays = new Set(effective.map(task => task.dateISO)).size;
+  const byType = groupDistribution(effective, 'taskType');
+  const projects = groupDistribution(effective, 'projectName').map(row => {
+    const projectTasks = effective.filter(task => task.projectName === row.key);
+    return {
+      ...row,
+      completionRate: Math.round(projectTasks.reduce((sum, task) => sum + task.completionPercentage, 0) / Math.max(projectTasks.length, 1)),
+      delayedCount: projectTasks.filter(task => task.isDelayed).length,
+      recentAchievement: projectTasks.find(task => task.status === 'completed')?.resultSummary || projectTasks.find(task => task.status === 'completed')?.title || '',
+    };
+  });
+  const trendMap = {};
+  effective.forEach(task => {
+    const key = options.periodType === 'year' ? task.dateISO.slice(0, 7) : task.dateISO.slice(5);
+    if (!trendMap[key]) trendMap[key] = { label: key, completedCount: 0, weighted: 0, planned: 0, delayedCount: 0, actualMinutes: 0 };
+    trendMap[key].planned += 1;
+    trendMap[key].weighted += task.completionPercentage;
+    trendMap[key].completedCount += task.status === 'completed' ? 1 : 0;
+    trendMap[key].delayedCount += task.isDelayed ? 1 : 0;
+    trendMap[key].actualMinutes += task.actualDurationMinutes || 0;
+  });
+  const completionTrend = Object.values(trendMap).sort((a, b) => a.label.localeCompare(b.label)).map(row => ({
+    ...row,
+    weightedCompletionRate: Math.round(row.weighted / Math.max(row.planned, 1)),
+    actualHours: hours(row.actualMinutes),
+  }));
+  const delayAnalysis = groupDistribution(delayed, 'taskType').map(row => ({
+    ...row,
+    count: row.tasks,
+    delayRate: pct(row.tasks, effective.filter(task => task.taskType === row.key).length),
+    avgDelayMinutes: Math.round(delayed.filter(task => task.taskType === row.key).reduce((sum, task) => sum + task.delayMinutes, 0) / Math.max(row.tasks, 1)),
+  }));
+  const recoveryMinutes = effective.filter(task => ['rest_recovery','exercise'].includes(task.taskType)).reduce((sum, task) => sum + task.actualDurationMinutes, 0);
+  const competencyReliable = completed.length >= 10 && activeDays >= 7;
+  const competencyScores = competencyReliable ? {
+    isReliable: true,
+    message: '该分数根据日历任务行为估算',
+    scores: [
+      { key:'execution', label:'执行力', score: Math.min(95, Math.max(20, pct(completed.length, effective.length))) },
+      { key:'focus', label:'专注力', score: Math.min(95, Math.max(30, 78 - Math.max(0, effective.length / Math.max(activeDays,1) - 3) * 6)) },
+      { key:'planning', label:'计划能力', score: Math.min(95, Math.max(20, 88 - pct(delayed.length, effective.length))) },
+      { key:'time_estimation', label:'时间估算能力', score: effective.some(t => t.actualDurationSource !== 'estimated') ? 72 : 45 },
+      { key:'consistency', label:'持续性', score: Math.min(95, Math.max(20, activeDays / 20 * 100)) },
+      { key:'project_progress', label:'项目推进能力', score: Math.min(95, Math.max(20, pct(completed.length, effective.length))) },
+      { key:'energy_management', label:'精力管理能力', score: Math.min(95, Math.max(20, 55 + pct(recoveryMinutes, actualMinutes))) },
+      { key:'quality', label:'任务完成质量', score: Math.min(90, Math.max(30, 50 + pct(effective.filter(t => t.resultSummary || t.isMilestone).length, Math.max(completed.length,1)) * .5)) },
+    ]
+  } : { isReliable:false, message:'需要更多任务数据才能形成稳定画像', scores:[] };
+  const achievements = effective
+    .filter(task => task.status === 'completed' && (task.isMilestone || task.resultSummary || task.actualDurationMinutes >= 120))
+    .sort((a,b) => (b.dateISO || '').localeCompare(a.dateISO || ''))
+    .slice(0, 12)
+    .map(task => ({ dateISO: task.dateISO, title: task.resultSummary || task.title, projectName: task.projectName, isMilestone: task.isMilestone }));
+  return {
+    overview: {
+      periodType: options.periodType,
+      periodStart: range.startDate,
+      periodEnd: range.endDate,
+      plannedTaskCount: effective.length,
+      completedTaskCount: completed.length,
+      fullCompletionRate: pct(completed.length, effective.length),
+      weightedCompletionRate: Math.round(weighted * 10) / 10,
+      plannedDurationMinutes: plannedMinutes,
+      actualDurationMinutes: actualMinutes,
+      actualDurationHours: hours(actualMinutes),
+      estimatedActualMinutes: effective.filter(task => task.actualDurationSource === 'estimated').reduce((sum, task) => sum + task.actualDurationMinutes, 0),
+      delayedTaskCount: delayed.length,
+      delayedRate: pct(delayed.length, effective.length),
+      avgDelayMinutes: Math.round(delayed.reduce((sum, task) => sum + task.delayMinutes, 0) / Math.max(delayed.length, 1)),
+      totalEnergyCost: Math.round(effective.reduce((sum, task) => sum + task.energyInvestment, 0)),
+      totalRecoveryValue: Math.round(effective.reduce((sum, task) => sum + task.recoveryInvestment, 0)),
+      recoveryMinutes,
+      recoveryRate: pct(recoveryMinutes, actualMinutes),
+      activeDays,
+      hasEstimatedActualTime: effective.some(task => task.actualDurationSource === 'estimated'),
+    },
+    tasks: effective,
+    completionTrend,
+    taskTypeDistribution: byType,
+    energyDistribution: [...byType].sort((a,b) => b.energy - a.energy),
+    plannedVsActual: byType.map(row => ({ label: row.label, plannedMinutes: effective.filter(t => t.taskType === row.key).reduce((sum,t) => sum + t.durationMinutes, 0), actualMinutes: row.minutes })),
+    delayAnalysis,
+    projects,
+    competencyScores,
+    achievements,
+    projectOptions: [...new Set(normalized.map(task => task.projectName).filter(Boolean))].sort(),
+  };
+}
+
+async function getWorkProfileData() {
+  const range = getWorkProfileRange();
+  const tasks = loadBoardTasks().map(normalizeBoardTask);
+  const projectName = document.getElementById('wpProjectFilter')?.value || '';
+  const status = document.getElementById('wpStatusFilter')?.value || 'all';
+  const payload = { tasks, periodType: workProfileState.periodType, startDate: range.startDate, endDate: range.endDate, projectName, status };
+  try {
+    const resp = await fetch('/api/work-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (resp.ok && data.status === 'ok') return data;
+  } catch (err) {
+    console.warn('[WORK_PROFILE] API unavailable, using local aggregation:', err.message);
+  }
+  return { status: 'ok', source: 'local', ...buildLocalWorkProfile(tasks, payload) };
+}
+
+function renderOverviewCards(o) {
+  const energyLevel = o.totalEnergyCost > 1800 ? '偏高' : o.totalEnergyCost < 500 ? '偏低' : '正常';
+  return `
+    <div class="wp-card span-3"><div class="wp-card-title">完成任务</div><div class="wp-metric-value">${o.completedTaskCount}</div><div class="wp-metric-sub">计划 ${o.plannedTaskCount} 项</div></div>
+    <div class="wp-card span-3"><div class="wp-card-title">任务完成率</div><div class="wp-metric-value">${o.fullCompletionRate}%</div><div class="wp-metric-sub">加权完成率 ${o.weightedCompletionRate}%</div></div>
+    <div class="wp-card span-3"><div class="wp-card-title">实际投入时间</div><div class="wp-metric-value">${hours(o.actualDurationMinutes)}h</div><div class="wp-metric-sub">计划 ${hours(o.plannedDurationMinutes)}h${o.hasEstimatedActualTime ? ' · 含估算' : ''}</div></div>
+    <div class="wp-card span-3"><div class="wp-card-title">延期任务</div><div class="wp-metric-value">${o.delayedTaskCount}</div><div class="wp-metric-sub">延期率 ${o.delayedRate}% · 平均 ${o.avgDelayMinutes} 分钟</div></div>
+    <div class="wp-card span-3"><div class="wp-card-title">精力投入</div><div class="wp-metric-value">${o.totalEnergyCost}</div><div class="wp-metric-sub">当前负荷：${energyLevel}</div></div>
+    <div class="wp-card span-3"><div class="wp-card-title">恢复平衡</div><div class="wp-metric-value">${hours(o.recoveryMinutes)}h</div><div class="wp-metric-sub">恢复/锻炼占比 ${o.recoveryRate}%</div></div>`;
+}
+
+function renderBarList(rows, valueKey, shareKey, onClickPrefix = '') {
+  if (!rows || rows.length === 0) return '<div class="conflict-empty">暂无数据</div>';
+  return `<div class="wp-bars">${rows.map(row => `
+    <div class="wp-bar-row" ${onClickPrefix ? `onclick="openWorkProfileDrawer('${onClickPrefix}','${escapeHtml(row.key)}')"` : ''} style="${onClickPrefix ? 'cursor:pointer' : ''}">
+      <span>${escapeHtml(row.label)}</span>
+      <span class="wp-bar-track"><span class="wp-bar-fill" style="width:${Math.min(100, row[shareKey] || 0)}%;background:${row.color || 'var(--blue)'}"></span></span>
+      <span>${row[valueKey]}</span>
+    </div>`).join('')}</div>`;
+}
+
+function renderLineChart(rows) {
+  if (!rows || rows.length === 0) return '<div class="conflict-empty">暂无趋势数据</div>';
+  const w = 520, h = 190, pad = 28;
+  const maxVal = Math.max(1, ...rows.map(r => Math.max(r.completedCount, r.delayedCount, r.weightedCompletionRate / 20)));
+  const pts = rows.map((r, i) => {
+    const x = pad + i * ((w - pad * 2) / Math.max(rows.length - 1, 1));
+    const y = h - pad - (r.completedCount / maxVal) * (h - pad * 2);
+    return `${x},${y}`;
+  }).join(' ');
+  return `<svg class="wp-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="任务完成趋势">
+    <polyline fill="none" stroke="var(--blue)" stroke-width="3" points="${pts}"></polyline>
+    ${rows.map((r, i) => {
+      const x = pad + i * ((w - pad * 2) / Math.max(rows.length - 1, 1));
+      const y = h - pad - (r.completedCount / maxVal) * (h - pad * 2);
+      return `<circle cx="${x}" cy="${y}" r="4" fill="var(--blue)"><title>${r.label}: 完成${r.completedCount}项，加权${r.weightedCompletionRate}%</title></circle>
+        <text x="${x}" y="${h - 6}" text-anchor="middle" font-size="10" fill="#8e8e93">${r.label}</text>`;
+    }).join('')}
+  </svg>`;
+}
+
+function renderRadar(scores) {
+  if (!scores?.isReliable) return `<div class="conflict-empty">${scores?.message || '完成更多任务后，系统会形成更加稳定的能力画像。'}</div>`;
+  const values = scores.scores;
+  const cx = 150, cy = 120, r = 78;
+  const points = values.map((item, i) => {
+    const angle = -Math.PI / 2 + i * Math.PI * 2 / values.length;
+    const rr = r * item.score / 100;
+    return `${cx + Math.cos(angle) * rr},${cy + Math.sin(angle) * rr}`;
+  }).join(' ');
+  return `<svg class="wp-svg" viewBox="0 0 300 240" role="img" aria-label="能力画像雷达图">
+    <polygon points="${points}" fill="rgba(0,113,227,.18)" stroke="var(--blue)" stroke-width="2"></polygon>
+    ${values.map((item, i) => {
+      const angle = -Math.PI / 2 + i * Math.PI * 2 / values.length;
+      return `<line x1="${cx}" y1="${cy}" x2="${cx + Math.cos(angle) * r}" y2="${cy + Math.sin(angle) * r}" stroke="#e5e5ea"/>
+        <text class="wp-radar-label" x="${cx + Math.cos(angle) * (r + 24)}" y="${cy + Math.sin(angle) * (r + 18)}" text-anchor="middle">${item.label}</text>`;
+    }).join('')}
+  </svg><div class="wp-note">${scores.message}</div>`;
+}
+
+function renderProjects(projects) {
+  if (!projects || projects.length === 0) return '<div class="conflict-empty">暂无项目数据</div>';
+  return `<div class="wp-project-list">${projects.slice(0,8).map(project => `
+    <div class="wp-project" onclick="openWorkProfileDrawer('project','${escapeHtml(project.key)}')" style="cursor:pointer">
+      <div class="wp-project-head"><span>${escapeHtml(project.label)}</span><span>${project.completionRate}%</span></div>
+      <div class="wp-project-meta">完成 ${project.completedCount}/${project.taskCount} 项 · 投入 ${project.hours}h · 精力 ${project.energy} · 延期 ${project.delayedCount} 项</div>
+      <div class="wp-progress"><span style="width:${project.completionRate}%"></span></div>
+      ${project.recentAchievement ? `<div class="wp-note" style="margin-top:6px">最近成果：${escapeHtml(project.recentAchievement)}</div>` : ''}
+    </div>`).join('')}</div>`;
+}
+
+function renderAchievements(items) {
+  if (!items || items.length === 0) return '<div class="conflict-empty">暂无可识别的成果。可在任务中补充成果总结或标记里程碑。</div>';
+  return `<div class="wp-achievements">${items.map(item => `
+    <div class="wp-project">
+      <div class="wp-project-head"><span>${escapeHtml(item.dateISO)}</span>${item.isMilestone ? '<span class="wp-pill">里程碑</span>' : ''}</div>
+      <div class="wp-project-meta">${escapeHtml(item.title)} · ${escapeHtml(item.projectName || '未归属项目')}</div>
+    </div>`).join('')}</div>`;
+}
+
+async function loadCoachSummary(profile) {
+  const panel = document.getElementById('wpCoachPanel');
+  if (!panel) return;
+  const cacheKey = `${WORK_PROFILE_SUMMARY_KEY}.${profile.overview.periodType}.${profile.overview.periodStart}.${profile.sourceDataHash || ''}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    renderCoachSummary(JSON.parse(cached));
+    return;
+  }
+  const endpoint = profile.overview.periodType === 'year' ? '/api/work-profile/yearly-summary' : '/api/work-profile/daily-summary';
+  let summary = buildRuleCoachSummary(profile);
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.summary) summary = data.summary;
+  } catch (err) {
+    console.warn('[WORK_PROFILE] Summary fallback:', err.message);
+  }
+  localStorage.setItem(cacheKey, JSON.stringify(summary));
+  renderCoachSummary(summary);
+}
+
+function buildRuleCoachSummary(profile) {
+  const o = profile.overview;
+  const top = profile.energyDistribution?.[0]?.label || '暂无明显方向';
+  return {
+    overview: `本周期计划 ${o.plannedTaskCount} 项任务，完成 ${o.completedTaskCount} 项，加权完成率 ${o.weightedCompletionRate}%。`,
+    achievements: profile.achievements?.slice(0,3).map(a => a.title) || ['暂无可识别成果'],
+    problems: [o.hasEstimatedActualTime ? '部分实际用时为估算值' : '', o.delayedTaskCount ? `有 ${o.delayedTaskCount} 项任务延期` : '没有明显延期问题'].filter(Boolean),
+    energyInsight: `精力投入最高的方向是${top}。`,
+    planningInsight: '该判断基于日历任务行为估算，实际用时越完整，分析越稳定。',
+    tomorrowSuggestion: ['优先处理延期任务', '为高精力任务预留连续时间', '安排恢复或锻炼时间'],
+    mainFocus: o.delayedTaskCount ? '降低延期风险' : '保持当前推进节奏',
+  };
+}
+
+function renderCoachSummary(s) {
+  const panel = document.getElementById('wpCoachPanel');
+  if (!panel) return;
+  panel.innerHTML = `<div class="wp-coach">
+    <h4>AI 效率教练</h4>
+    <p>${escapeHtml(s.overview || '')}</p>
+    <p><strong>精力观察：</strong>${escapeHtml(s.energyInsight || '')}</p>
+    <p><strong>计划观察：</strong>${escapeHtml(s.planningInsight || '')}</p>
+    <p><strong>主要关注：</strong>${escapeHtml(s.mainFocus || '')}</p>
+    <ul>${(s.tomorrowSuggestion || []).map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+  </div>`;
+}
+
+async function renderWorkProfile() {
+  const content = document.getElementById('workProfileContent');
+  const rangeEl = document.getElementById('workProfileRange');
+  if (!content) return;
+  content.innerHTML = '<div class="empty-state"><div class="emoji">📊</div><p>正在生成工作画像...</p></div>';
+  const profile = await getWorkProfileData();
+  workProfileState.profile = profile;
+  const o = profile.overview;
+  if (rangeEl) rangeEl.textContent = `${o.periodStart} 至 ${o.periodEnd} · 数据来自当前浏览器日历看板${profile.source === 'local' ? ' · 本地聚合' : ''}`;
+  populateWorkProfileFilters(profile);
+  if (!o.plannedTaskCount) {
+    content.innerHTML = `<div class="empty-state"><div class="emoji">📊</div><p>你的工作画像还没有形成<br>在日历中创建并完成任务后，这里会逐渐展示你的时间、精力和工作成果。</p><button class="calendar-btn" onclick="setAppPage('planner')" style="max-width:220px;margin:16px auto 0">前往创建任务</button></div>`;
+    return;
+  }
+  content.innerHTML = `<div class="wp-grid">
+    ${renderOverviewCards(o)}
+    <div class="wp-card span-7"><div class="wp-card-title">任务完成趋势</div>${renderLineChart(profile.completionTrend)}</div>
+    <div class="wp-card span-5"><div class="wp-card-title">任务类型时间分配 <button class="board-mini-btn" onclick="openMetricHelp('time')">说明</button></div>${renderBarList(profile.taskTypeDistribution, 'hours', 'timeShare', 'type')}</div>
+    <div class="wp-card span-5"><div class="wp-card-title">精力分配 <button class="board-mini-btn" onclick="openMetricHelp('energy')">说明</button></div>${renderBarList(profile.energyDistribution, 'energy', 'energyShare', 'type')}</div>
+    <div class="wp-card span-7"><div class="wp-card-title">计划时间与实际时间</div>${renderPlannedVsActual(profile.plannedVsActual)}</div>
+    <div class="wp-card span-6"><div class="wp-card-title">项目投入与进度</div>${renderProjects(profile.projects)}</div>
+    <div class="wp-card span-6"><div class="wp-card-title">个人能力画像</div>${renderRadar(profile.competencyScores)}</div>
+    <div class="wp-card span-6"><div class="wp-card-title">延期分析</div>${renderBarList(profile.delayAnalysis, 'count', 'delayRate', 'delayed')}</div>
+    <div class="wp-card span-6"><div class="wp-card-title">AI 效率教练总结</div><div id="wpCoachPanel"><div class="conflict-empty">正在生成总结...</div></div></div>
+    <div class="wp-card span-12"><div class="wp-card-title">工作成果时间线</div>${renderAchievements(profile.achievements)}</div>
+    <div class="wp-card span-12"><div class="wp-card-title">未完成与延期任务</div>${renderDelayedTaskActions(profile.tasks)}</div>
+  </div>`;
+  loadCoachSummary(profile);
+}
+
+function renderPlannedVsActual(rows) {
+  if (!rows || rows.length === 0) return '<div class="conflict-empty">暂无时间对比数据</div>';
+  const maxVal = Math.max(1, ...rows.flatMap(r => [r.plannedMinutes, r.actualMinutes]));
+  return `<div class="wp-bars">${rows.map(row => `
+    <div style="margin-bottom:10px">
+      <div class="wp-note" style="margin-bottom:4px">${escapeHtml(row.label)} · 计划 ${hours(row.plannedMinutes)}h / 实际 ${hours(row.actualMinutes)}h</div>
+      <div class="wp-bar-track" style="height:8px;margin-bottom:3px"><span class="wp-bar-fill" style="width:${pct(row.plannedMinutes,maxVal)}%;background:var(--gray)"></span></div>
+      <div class="wp-bar-track" style="height:8px"><span class="wp-bar-fill" style="width:${pct(row.actualMinutes,maxVal)}%;background:var(--blue)"></span></div>
+    </div>`).join('')}</div>`;
+}
+
+function renderDelayedTaskActions(tasks) {
+  const items = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled').slice(0, 12);
+  if (!items.length) return '<div class="conflict-empty">暂无未完成任务</div>';
+  return `<div class="wp-task-list">${items.map(task => `
+    <div class="wp-task-row ${task.isDelayed ? 'delayed' : ''}">
+      <div class="wp-task-head"><span>${escapeHtml(task.title)}</span><span>${task.completionPercentage}%</span></div>
+      <div class="wp-task-meta">${escapeHtml(task.taskTypeLabel)} · ${escapeHtml(task.projectName)} · ${escapeHtml(formatTaskTime(task))} · ${escapeHtml(task.statusLabel)}</div>
+      ${task.isDelayed ? `<button class="schedule-write-btn" style="margin-top:8px" onclick="requestTaskReschedule('${task.id}')">让 AI 推荐新时间</button>` : ''}
+    </div>`).join('')}</div>`;
+}
+
+function populateWorkProfileFilters(profile) {
+  const select = document.getElementById('wpProjectFilter');
+  if (!select) return;
+  const current = select.value;
+  const options = [''].concat(profile.projectOptions || []);
+  select.innerHTML = options.map(value => `<option value="${escapeHtml(value)}">${value ? escapeHtml(value) : '全部项目'}</option>`).join('');
+  select.value = options.includes(current) ? current : '';
+}
+
+function openWorkProfileDrawer(kind, key) {
+  const profile = workProfileState.profile;
+  if (!profile) return;
+  let tasks = profile.tasks || [];
+  let title = '任务明细';
+  if (kind === 'type') {
+    tasks = tasks.filter(task => task.taskType === key);
+    title = taskTypes[key]?.label || key;
+  } else if (kind === 'project') {
+    tasks = tasks.filter(task => task.projectName === key);
+    title = key;
+  } else if (kind === 'delayed') {
+    tasks = tasks.filter(task => task.taskType === key && task.isDelayed);
+    title = `${taskTypes[key]?.label || key} · 延期任务`;
+  }
+  document.getElementById('wpDrawerTitle').textContent = title;
+  document.getElementById('wpDrawerSub').textContent = `${tasks.length} 项任务`;
+  document.getElementById('wpDrawerBody').innerHTML = tasks.length ? tasks.map(task => `
+    <div class="wp-task-row ${task.isDelayed ? 'delayed' : ''}">
+      <div class="wp-task-head"><span>${escapeHtml(task.title)}</span><span>${task.completionPercentage}%</span></div>
+      <div class="wp-task-meta">${escapeHtml(task.projectName)} · ${escapeHtml(formatTaskTime(task))} · 计划 ${hours(task.durationMinutes)}h · 实际 ${hours(task.actualDurationMinutes)}h${task.actualDurationSource === 'estimated' ? '（估算）' : ''}</div>
+      <div class="wp-note" title="${escapeHtml(task.aiEnergyReason)}">精力 ${task.aiEnergyCost} · 恢复 ${task.aiRecoveryValue} · ${escapeHtml(task.statusLabel)}</div>
+    </div>`).join('') : '<div class="conflict-empty">暂无任务</div>';
+  document.getElementById('workProfileDrawer').classList.add('open');
+}
+
+function closeWorkProfileDrawer() {
+  document.getElementById('workProfileDrawer')?.classList.remove('open');
+}
+
+function openMetricHelp(kind) {
+  const msg = kind === 'energy'
+    ? '精力投入值 = 实际时长 × 系统估算精力消耗。休息恢复和身体锻炼会同时计算恢复价值。'
+    : '时间分配优先使用实际用时；缺少实际用时时使用计划时长并标记为估算。';
+  alert(msg);
+}
+
+async function requestTaskReschedule(taskId) {
+  const tasks = loadBoardTasks().map(normalizeBoardTask);
+  const task = tasks.find(item => item.id === taskId);
+  if (!task) return;
+  let suggestions = [];
+  try {
+    const resp = await fetch('/api/tasks/reschedule-suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task, tasks })
+    });
+    const data = await resp.json();
+    if (resp.ok) suggestions = data.suggestions || [];
+  } catch (err) {
+    suggestions = buildLocalRescheduleSuggestions(task, tasks);
+  }
+  showRescheduleChoices(task, suggestions.length ? suggestions : buildLocalRescheduleSuggestions(task, tasks));
+}
+
+function buildLocalRescheduleSuggestions(task, tasks) {
+  const remaining = Math.max(30, Math.round((task.durationMinutes || 60) * (100 - task.completionPercentage) / 100));
+  const base = new Date();
+  const result = [];
+  for (let i = 0; i < 7 && result.length < 3; i++) {
+    const d = new Date(base); d.setDate(base.getDate() + i);
+    const dateISO = toDateISO(d);
+    const dayTasks = tasks.filter(t => t.id !== task.id && t.dateISO === dateISO && t.status !== 'cancelled');
+    const start = dayTasks.length ? '18:00' : '10:00';
+    const [h, m] = start.split(':').map(Number);
+    const endTotal = h * 60 + m + remaining;
+    result.push({
+      suggestionId: `${task.id}-${i}`,
+      suggestionType: ['earliest','balanced','lowest_risk'][result.length],
+      label: ['最早可执行时间','负荷最均衡时间','风险最低时间'][result.length],
+      suggestedDate: dateISO,
+      suggestedStart: start,
+      suggestedEnd: pad2(Math.floor(endTotal / 60)) + ':' + pad2(endTotal % 60),
+      durationMinutes: remaining,
+      confidence: 70 - dayTasks.length * 8,
+      reason: `基于当前看板空档，本地推荐 ${remaining} 分钟处理剩余工作量。`,
+    });
+  }
+  return result;
+}
+
+function showRescheduleChoices(task, suggestions) {
+  if (!suggestions.length) {
+    alert('未来 7 天内暂未找到合适时间，请手动调整。');
+    return;
+  }
+  const choice = prompt(suggestions.map((s, i) => `${i + 1}. ${s.label}：${s.suggestedDate} ${s.suggestedStart}-${s.suggestedEnd}，完成概率 ${s.confidence}%\n${s.reason}`).join('\n\n') + '\n\n输入 1-3 接受推荐，或留空取消');
+  const idx = Number(choice) - 1;
+  if (!suggestions[idx]) return;
+  acceptRescheduleSuggestion(task, suggestions[idx]);
+}
+
+async function acceptRescheduleSuggestion(task, suggestion) {
+  let patch = {
+    dateISO: suggestion.suggestedDate,
+    startTime: suggestion.suggestedStart,
+    endTime: suggestion.suggestedEnd,
+    originalScheduledStart: task.originalScheduledStart || `${task.dateISO}T${task.startTime}`,
+    originalScheduledEnd: task.originalScheduledEnd || `${task.dateISO}T${task.endTime}`,
+    rescheduleCount: Number(task.rescheduleCount || 0) + 1,
+    status: 'planned',
+  };
+  try {
+    const resp = await fetch('/api/tasks/accept-reschedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task, suggestion })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.patch) patch = data.patch;
+  } catch (err) {}
+  const tasks = loadBoardTasks();
+  const target = tasks.find(item => item.id === task.id);
+  if (!target) return;
+  Object.assign(target, patch);
+  saveBoardTasks(tasks.map(normalizeBoardTask));
+  await logTaskEvent('task_rescheduled', {
+    taskId: task.id,
+    title: task.title,
+    payload: { suggestion },
+  });
+  renderCalendarBoard();
+  renderWorkProfile();
+}
+
 renderCalendarBoard();
-setTimeout(loadProfile, 1500);
+const initialPage = window.location.hash === '#board' ? 'board' : window.location.hash === '#work-profile' ? 'work-profile' : 'planner';
+setAppPage(initialPage, { skipHash: true, instant: true });
+window.addEventListener('hashchange', () => {
+  const page = window.location.hash === '#board' ? 'board' : window.location.hash === '#work-profile' ? 'work-profile' : 'planner';
+  setAppPage(page, { skipHash: true, instant: true });
+});
 </script>
 
 </body>
