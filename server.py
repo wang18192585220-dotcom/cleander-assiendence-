@@ -10,7 +10,6 @@ import hashlib
 import urllib.request
 import tempfile
 import re
-import cgi
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
@@ -18,6 +17,7 @@ from io import BytesIO
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import user_profile
+import work_profile
 
 HERMES_HOME = "/Users/wangshiyu/.hermes/profiles/energy-management"
 GAPI = os.path.join(HERMES_HOME, "skills/productivity/google-workspace/scripts/google_api.py")
@@ -73,6 +73,27 @@ def _init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON task_events(event_type)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_events_created ON task_events(created_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+    c.execute("PRAGMA table_info(tasks)")
+    existing_cols = {row[1] for row in c.fetchall()}
+    task_columns = {
+        "task_type": "TEXT",
+        "completion_percentage": "INTEGER DEFAULT 0",
+        "actual_duration_source": "TEXT",
+        "is_delayed": "INTEGER DEFAULT 0",
+        "original_scheduled_start": "TEXT",
+        "original_scheduled_end": "TEXT",
+        "reschedule_count": "INTEGER DEFAULT 0",
+        "ai_energy_cost": "REAL",
+        "ai_recovery_value": "REAL",
+        "ai_energy_confidence": "REAL",
+        "ai_energy_reason": "TEXT",
+        "is_milestone": "INTEGER DEFAULT 0",
+        "result_summary": "TEXT",
+        "updated_at": "TEXT",
+    }
+    for col, ddl in task_columns.items():
+        if col not in existing_cols:
+            c.execute(f"ALTER TABLE tasks ADD COLUMN {col} {ddl}")
     conn.commit()
     conn.close()
 
@@ -213,6 +234,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self._handle_analyze(data)
         elif self.path == "/api/schedule":
             self._handle_schedule(data)
+        elif self.path == "/api/board/conflicts":
+            self._handle_board_conflicts(data)
+        elif self.path == "/api/work-profile":
+            self._handle_work_profile(data)
+        elif self.path == "/api/work-profile/daily-summary":
+            self._handle_work_profile_summary(data, "daily")
+        elif self.path == "/api/work-profile/yearly-summary":
+            self._handle_work_profile_summary(data, "yearly")
+        elif self.path == "/api/tasks/reschedule-suggestions":
+            self._handle_task_reschedule_suggestions(data)
+        elif self.path == "/api/tasks/accept-reschedule":
+            self._handle_accept_reschedule(data)
         elif self.path == "/api/history/log":
             self._handle_history_log(data)
         else:
@@ -402,6 +435,262 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 self._json_response(500, {"status": "error", "message": err})
         except Exception as e:
             self._json_response(500, {"status": "error", "message": str(e)})
+
+    def _parse_board_minutes(self, value):
+        """Convert HH:MM to minutes after midnight."""
+        if not value or not isinstance(value, str):
+            return None
+        match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
+        if not match:
+            return None
+        hour, minute = int(match.group(1)), int(match.group(2))
+        if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+            return None
+        return hour * 60 + minute
+
+    def _format_board_minutes(self, minutes):
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+    def _normalize_board_task_window(self, task):
+        """Return (dateISO, start_minute, end_minute, message)."""
+        date_iso = task.get("dateISO") or task.get("date")
+        start = self._parse_board_minutes(task.get("startTime") or task.get("start"))
+        end = self._parse_board_minutes(task.get("endTime") or task.get("end"))
+        duration = task.get("durationMinutes")
+
+        if start is not None and end is None and duration:
+            try:
+                end = start + int(duration)
+            except (TypeError, ValueError):
+                end = None
+
+        if not date_iso:
+            return None, None, None, "任务缺少日期，无法检测冲突"
+        if start is None:
+            return date_iso, None, None, "任务缺少开始时间，无法检测冲突"
+        if end is None:
+            return date_iso, start, None, "任务缺少结束时间或预计用时，无法检测冲突"
+        if end <= start:
+            return date_iso, start, end, "任务结束时间必须晚于开始时间"
+
+        return date_iso, start, end, ""
+
+    def _find_board_recommendations(self, task, existing_tasks, days=7):
+        date_iso, start, end, message = self._normalize_board_task_window(task)
+        if message:
+            return []
+
+        duration = end - start
+        try:
+            base_day = datetime.strptime(date_iso[:10], "%Y-%m-%d")
+        except ValueError:
+            return []
+
+        recommendations = []
+        work_start = 9 * 60
+        work_end = 22 * 60
+
+        for offset in range(max(1, min(days, 14))):
+            day = base_day + timedelta(days=offset)
+            day_iso = day.strftime("%Y-%m-%d")
+            occupied = []
+
+            for existing in existing_tasks:
+                ex_date, ex_start, ex_end, ex_message = self._normalize_board_task_window(existing)
+                if ex_message or ex_date != day_iso:
+                    continue
+                occupied.append((max(work_start, ex_start), min(work_end, ex_end), existing))
+
+            occupied.sort(key=lambda item: item[0])
+            merged = []
+            for occ_start, occ_end, existing in occupied:
+                if occ_end <= work_start or occ_start >= work_end:
+                    continue
+                if not merged or occ_start > merged[-1][1]:
+                    merged.append([occ_start, occ_end, [existing]])
+                else:
+                    merged[-1][1] = max(merged[-1][1], occ_end)
+                    merged[-1][2].append(existing)
+
+            cursor = work_start
+            gaps = []
+            for occ_start, occ_end, _items in merged:
+                if cursor + duration <= occ_start:
+                    gaps.append((cursor, occ_start))
+                cursor = max(cursor, occ_end)
+            if cursor + duration <= work_end:
+                gaps.append((cursor, work_end))
+
+            for gap_start, gap_end in gaps:
+                suggested_start = max(gap_start, start) if offset == 0 and start >= gap_start and start + duration <= gap_end else gap_start
+                suggested_end = suggested_start + duration
+                if suggested_end > gap_end:
+                    continue
+
+                if not occupied:
+                    reason = f"这一天看板没有其他任务，{self._format_board_minutes(suggested_start)}-{self._format_board_minutes(suggested_end)} 满足 {duration} 分钟连续时长"
+                else:
+                    avoided = "、".join(
+                        f"{self._format_board_minutes(s)}-{self._format_board_minutes(e)}"
+                        for s, e, _ in merged[:3]
+                    )
+                    reason = f"避开了已有任务时段 {avoided}，并保留 {duration} 分钟连续空闲"
+
+                recommendations.append({
+                    "dateISO": day_iso,
+                    "startTime": self._format_board_minutes(suggested_start),
+                    "endTime": self._format_board_minutes(suggested_end),
+                    "durationMinutes": duration,
+                    "reason": reason,
+                })
+                if len(recommendations) >= 3:
+                    return recommendations
+
+        return recommendations
+
+    def _handle_board_conflicts(self, data):
+        """POST /api/board/conflicts — detect local board task overlaps."""
+        task = data.get("task") or {}
+        existing_tasks = data.get("existingTasks") or []
+        days = data.get("days", 7)
+
+        date_iso, start, end, message = self._normalize_board_task_window(task)
+        if message:
+            self._json_response(400, {
+                "status": "error",
+                "message": message,
+                "hasConflict": False,
+                "conflicts": [],
+                "recommendations": [],
+            })
+            return
+
+        conflicts = []
+        for existing in existing_tasks:
+            ex_date, ex_start, ex_end, ex_message = self._normalize_board_task_window(existing)
+            if ex_message or ex_date != date_iso:
+                continue
+            if start < ex_end and end > ex_start:
+                conflicts.append({
+                    "id": existing.get("id", ""),
+                    "title": existing.get("title", "未命名任务"),
+                    "dateISO": ex_date,
+                    "startTime": self._format_board_minutes(ex_start),
+                    "endTime": self._format_board_minutes(ex_end),
+                })
+
+        recommendations = self._find_board_recommendations(task, existing_tasks, days)
+        self._json_response(200, {
+            "status": "ok",
+            "hasConflict": bool(conflicts),
+            "conflicts": conflicts,
+            "recommendations": recommendations,
+            "message": "发现时间冲突，请选择推荐时间或强行添加" if conflicts else "该时间段没有冲突",
+        })
+
+    def _handle_work_profile(self, data):
+        """POST /api/work-profile — aggregate local board tasks."""
+        try:
+            profile = work_profile.build_profile(
+                data.get("tasks") or [],
+                period_type=data.get("periodType", "week"),
+                start_date=data.get("startDate"),
+                end_date=data.get("endDate"),
+                project_name=data.get("projectName", ""),
+                status=data.get("status", "all"),
+            )
+            self._json_response(200, {"status": "ok", **profile})
+        except Exception as e:
+            print(f"[WORK_PROFILE] Error: {e}", flush=True)
+            self._json_response(500, {"status": "error", "message": str(e)})
+
+    def _handle_work_profile_summary(self, data, summary_type):
+        """POST /api/work-profile/*-summary — structured coach summary."""
+        profile = data.get("profile")
+        if not profile:
+            profile = work_profile.build_profile(
+                data.get("tasks") or [],
+                period_type="year" if summary_type == "yearly" else "day",
+                start_date=data.get("date") or data.get("startDate"),
+                end_date=data.get("endDate"),
+            )
+
+        fallback = work_profile.rule_summary(profile, summary_type=summary_type)
+        if not DEEPSEEK_API_KEY:
+            self._json_response(200, {"status": "ok", "source": "rule_fallback", "summary": fallback})
+            return
+
+        try:
+            prompt = (
+                "你是私人效率教练。只返回 JSON，不要 markdown。字段必须包含："
+                "overview, achievements, problems, energyInsight, planningInsight, "
+                "tomorrowSuggestion, mainFocus。语气直接、客观、有行动建议，不羞辱用户。"
+            )
+            payload = {
+                "overview": profile.get("overview", {}),
+                "taskTypeDistribution": profile.get("taskTypeDistribution", []),
+                "energyDistribution": profile.get("energyDistribution", []),
+                "projects": profile.get("projects", [])[:8],
+                "achievements": profile.get("achievements", [])[:8],
+                "delayAnalysis": profile.get("delayAnalysis", []),
+            }
+            req = urllib.request.Request(
+                "https://api.deepseek.com/v1/chat/completions",
+                data=json.dumps({
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 900,
+                }).encode(),
+                headers={
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+            )
+            resp = urllib.request.urlopen(req, timeout=25)
+            result = json.loads(resp.read())
+            content = result["choices"][0]["message"]["content"].strip()
+            summary = work_profile.validate_summary(self._extract_json(content))
+            if not summary:
+                summary = fallback
+                source = "rule_fallback"
+            else:
+                source = "ai"
+            self._json_response(200, {"status": "ok", "source": source, "summary": summary})
+        except Exception as e:
+            print(f"[WORK_PROFILE] Summary fallback: {e}", flush=True)
+            self._json_response(200, {"status": "ok", "source": "rule_fallback", "summary": fallback})
+
+    def _handle_task_reschedule_suggestions(self, data):
+        """POST /api/tasks/reschedule-suggestions — suggest new slots for a delayed task."""
+        task = data.get("task") or {}
+        tasks = data.get("tasks") or []
+        suggestions = work_profile.reschedule_suggestions(task, tasks)
+        self._json_response(200, {"status": "ok", "suggestions": suggestions})
+
+    def _handle_accept_reschedule(self, data):
+        """POST /api/tasks/accept-reschedule — return a task patch for localStorage."""
+        task = data.get("task") or {}
+        suggestion = data.get("suggestion") or {}
+        if not task or not suggestion:
+            self._json_response(400, {"status": "error", "message": "Missing task or suggestion"})
+            return
+        original_start = task.get("originalScheduledStart") or f"{task.get('dateISO', '')}T{task.get('startTime', '')}"
+        original_end = task.get("originalScheduledEnd") or f"{task.get('dateISO', '')}T{task.get('endTime', '')}"
+        patch = {
+            "dateISO": suggestion.get("suggestedDate"),
+            "startTime": suggestion.get("suggestedStart"),
+            "endTime": suggestion.get("suggestedEnd"),
+            "originalScheduledStart": original_start,
+            "originalScheduledEnd": original_end,
+            "rescheduleCount": int(task.get("rescheduleCount") or 0) + 1,
+            "status": "planned",
+            "rescheduleReason": suggestion.get("reason", ""),
+        }
+        self._json_response(200, {"status": "ok", "taskId": task.get("id"), "patch": patch})
 
     def _handle_upload(self):
         """Handle file upload: extract text, AI decompose into tasks."""

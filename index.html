@@ -68,7 +68,8 @@ body{
   max-width:1200px;margin:0 auto;padding:24px 20px 40px;
   display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,400px);gap:24px;align-items:start;
 }
-.planner-left{min-width:0}
+.planner-left{min-width:0;display:grid;gap:16px}
+.planner-left > .panel,.planner-left > .planner-actions{margin-top:0!important}
 
 /* ===== Panel Common ===== */
 .panel{
@@ -416,10 +417,22 @@ input[type="color"]{
 }
 .selected-task.done{opacity:.66}
 .selected-task-info{min-width:0;flex:1}
+.selected-task-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+}
 .selected-task-title{
-  font-size:13px;font-weight:700;line-height:1.35;color:var(--text);
+  min-width:0;font-size:13px;font-weight:700;line-height:1.35;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+.selected-task-actions{
+  flex:0 0 auto;display:flex;align-items:center;gap:5px;
+}
+.selected-task-action{
+  border:none;border-radius:6px;background:var(--gray-light);color:var(--text-secondary);
+  font-size:10px;font-weight:750;padding:4px 7px;cursor:pointer;white-space:nowrap;
+}
+.selected-task-action:hover{background:var(--blue-light);color:var(--blue)}
+.selected-task-action.danger:hover{background:var(--red-light);color:var(--red)}
 .selected-task.done .selected-task-title{text-decoration:line-through;color:var(--text-secondary)}
 .selected-task-detail{
   font-size:11px;color:var(--text-secondary);line-height:1.45;margin-top:3px;
@@ -548,14 +561,15 @@ input[type="color"]{
 .wp-drawer-body{padding:16px 20px;overflow:auto}
 .wp-pill{display:inline-flex;border-radius:99px;padding:2px 8px;background:var(--blue-light);color:var(--blue);font-size:10px;font-weight:750}
 @media (max-width:900px){
-  .container{display:flex;flex-direction:column;padding:16px;gap:16px}
-  .planner-left{display:contents}
-  .input-panel{order:1}
-  .extracted-panel{order:2}
-  .preview-panel{order:3;width:100%;position:static}
-  .priority-panel{order:4}
-  .category-panel{order:5}
-  .planner-actions{order:6;width:100%}
+  .container{padding:16px;gap:16px}
+  #plannerPage.container{
+    display:grid;grid-template-columns:minmax(260px,.92fr) minmax(0,1.08fr);
+    align-items:stretch;
+  }
+  #plannerPage .planner-left{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  #plannerPage .preview-panel{width:100%;position:static;height:100%}
+  #plannerPage .preview-card{min-height:100%;display:flex;flex-direction:column}
+  #plannerPage #previewContent > #emptyState{margin:auto}
   .header{padding:16px 20px}
   .header-inner{align-items:flex-start;flex-direction:column}
   .header-actions{width:100%;justify-content:flex-start;gap:6px}
@@ -578,6 +592,9 @@ input[type="color"]{
   .upload-actions button{flex:1 1 140px}
   .work-profile-shell{padding:0 16px 28px}
   .wp-card.span-3,.wp-card.span-4,.wp-card.span-5,.wp-card.span-6,.wp-card.span-7{grid-column:span 12}
+}
+@media (max-width:500px){
+  #plannerPage.container{grid-template-columns:1fr}
 }
 @media (max-width:480px){
   body{font-size:14px}
@@ -603,9 +620,246 @@ input[type="color"]{
   .board-day-date{display:none}
   .board-side{padding:12px}
   .board-stats{gap:6px}
+  .selected-task-head{align-items:stretch;flex-direction:column;gap:6px}
+  .selected-task-actions{align-self:flex-start}
   .selected-task-title{white-space:normal}
   .wp-title{font-size:20px}
   .wp-bar-row{grid-template-columns:76px minmax(0,1fr) 44px}
+}
+
+/* ===== Neon mobile-dashboard redesign ===== */
+:root{
+  --bg:#2f3733;
+  --surface:#050605;
+  --surface-2:#0b0d0c;
+  --card-bg:#060707;
+  --text:#f6f7ef;
+  --text-secondary:#a7ada7;
+  --text-tertiary:#6f766f;
+  --border:#242a26;
+  --blue:#2f8cff;
+  --blue-light:rgba(47,140,255,.16);
+  --green:#20e262;
+  --green-light:rgba(32,226,98,.15);
+  --orange:#ffb238;
+  --orange-light:rgba(255,178,56,.15);
+  --red:#ff5f57;
+  --red-light:rgba(255,95,87,.15);
+  --purple:#d95eff;
+  --purple-light:rgba(217,94,255,.16);
+  --pink:#f365a9;
+  --pink-light:rgba(243,101,169,.16);
+  --yellow:#f2f119;
+  --gray:#828982;
+  --gray-light:#141714;
+  --shadow:none;
+  --shadow-card:0 18px 60px rgba(0,0,0,.34);
+  --radius:28px;
+  --radius-sm:18px;
+  --transition:0.22s cubic-bezier(.2,.8,.2,1);
+}
+
+body{
+  background:
+    radial-gradient(circle at 18% 4%, rgba(242,241,25,.08), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(47,140,255,.09), transparent 24%),
+    linear-gradient(135deg,#29322d 0%,#343b38 48%,#2d3438 100%);
+  color:var(--text);
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.72),transparent 78%);
+}
+
+.header{
+  max-width:1200px;margin:20px auto 0;padding:0 20px;background:transparent;border:0;
+}
+.header-inner{
+  position:relative;overflow:hidden;
+  background:var(--surface);border:1px solid #1b201d;border-radius:32px;
+  padding:22px 24px;box-shadow:var(--shadow-card);
+}
+.header-inner::before{
+  content:"";position:absolute;left:-40px;top:-60px;width:210px;height:210px;opacity:.5;
+  background:
+    linear-gradient(26deg,transparent 48%,#f365a9 49% 52%,transparent 53%),
+    linear-gradient(72deg,transparent 48%,#f6f7ef 49% 50%,transparent 51%),
+    linear-gradient(112deg,transparent 48%,#f365a9 49% 52%,transparent 53%),
+    linear-gradient(154deg,transparent 48%,#f6f7ef 49% 50%,transparent 51%);
+  transform:rotate(8deg);
+}
+.header-copy{position:relative;z-index:1;padding-left:118px}
+.header h1{font-size:28px;line-height:1.02;max-width:420px;text-transform:uppercase;letter-spacing:0;font-weight:850}
+.header .subtitle{margin-top:10px;color:#f2f119;font-size:13px;font-weight:800}
+.header .tagline{max-width:560px;margin-top:7px;color:var(--text-secondary);font-size:12px;line-height:1.55}
+.header-actions{position:relative;z-index:1}
+.top-nav-btn,.board-action,.wp-control,.wp-select{
+  border:1px solid #272e29;background:#0c0e0d;color:var(--text-secondary);
+  border-radius:999px;font-weight:800;
+}
+.top-nav-btn:hover,.board-action:hover,.wp-control:hover{
+  border-color:#f2f119;color:#f2f119;background:#15170d;transform:translateY(-1px);
+}
+.top-nav-btn.active,.wp-segment button.active{
+  border-color:#fff;background:#fff;color:#050605;
+}
+
+.container,.board-shell,.work-profile-shell{padding-top:24px}
+.panel{
+  background:var(--surface);border:1px solid #1e2420;border-radius:var(--radius);
+  box-shadow:var(--shadow-card);overflow:hidden;
+}
+.panel-header{
+  border-bottom:1px solid var(--border);padding:18px 20px;color:var(--text);
+  font-size:13px;font-weight:850;text-transform:uppercase;letter-spacing:0;
+}
+.panel-header .icon{filter:saturate(1.35)}
+.panel-body{padding:18px}
+
+textarea,.category-select,.project-row input[type="text"]{
+  background:#0a0c0b;border:1px solid #2b322d;border-radius:20px;color:var(--text);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
+}
+textarea{min-height:132px;font-size:15px;line-height:1.65}
+textarea:focus,.category-select:focus,.project-row input[type="text"]:focus{
+  border-color:#f2f119;box-shadow:0 0 0 3px rgba(242,241,25,.14);outline:none;
+}
+textarea::placeholder{color:#626962}
+.form-label{color:var(--text-tertiary);font-weight:850;letter-spacing:.3px}
+.file-upload-label{
+  border:1px dashed #353d37;background:#0a0c0b;border-radius:20px;color:#d7dbd2;
+  min-height:52px;font-weight:750;
+}
+.file-upload-label:hover{border-color:#20e262;background:rgba(32,226,98,.08);color:#20e262}
+input[type="color"]{border-color:#2b322d;background:#0a0c0b;border-radius:14px}
+
+.priority-grid{gap:10px}
+.priority-btn{
+  min-height:72px;border:1px solid transparent;border-radius:22px;color:#061008;
+  text-align:left;font-size:13px;font-weight:850;padding:14px 15px;
+}
+.priority-btn.p1{background:#f365a9}.priority-btn.p2{background:#2f8cff}
+.priority-btn.p3{background:#f2f119}.priority-btn.p4{background:#20e262}
+.priority-btn:hover,.priority-btn.active{
+  transform:translateY(-2px);box-shadow:0 16px 28px rgba(0,0,0,.28);
+  border-color:rgba(255,255,255,.55);color:#050605;
+}
+
+.btn{border-radius:999px;font-weight:850;min-height:48px}
+.btn-primary,.calendar-btn,.recommendation-btn,.schedule-write-btn{
+  background:#fff;color:#050605;border:0;
+}
+.btn-primary:hover,.calendar-btn:not(:disabled):hover,.recommendation-btn:hover,.schedule-write-btn:hover{
+  background:#f2f119;color:#050605;box-shadow:0 10px 30px rgba(242,241,25,.18);
+}
+.btn-secondary,.conflict-cancel{
+  background:#151816;color:var(--text-secondary);border:1px solid #2a312c;
+}
+.calendar-btn:disabled{background:#151816;color:#586058}
+
+.preview-panel{top:24px}
+.preview-card{margin:14px}
+.status-badge,.priority-tag,.color-preview,.wp-pill{
+  border-radius:999px;font-weight:850;
+}
+.status-ok{background:#20e262;color:#041006}.status-ok .status-dot{background:#041006}
+.status-warning{background:#f2f119;color:#161604}.status-warning .status-dot{background:#161604}
+.status-pending{background:#151816;color:var(--text-secondary)}
+.task-title-preview{font-size:24px;line-height:1.05;text-transform:uppercase;letter-spacing:0;font-weight:900}
+.preview-field{
+  padding:10px 0;border-bottom:1px solid #171c18;margin-bottom:0;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+}
+.preview-field .pf-label{font-size:10px;color:#687168;margin:0}
+.preview-field .pf-value{font-size:13px;text-align:right;color:#edf0e9}
+.ai-estimate,.hint-box{
+  border:1px solid rgba(242,241,25,.24);border-left:0;background:#f2f119;color:#0a0b05;
+  border-radius:22px;margin-top:14px;
+}
+.ai-estimate .ai-label,.ai-estimate .ai-value{color:#0a0b05}
+.missing-item{color:#ff8b85}
+.missing-item::before{content:"!";color:#ff8b85}
+
+.schedule-day,.board-side,.wp-coach,.wp-project,.wp-task-row,.selected-task,.board-stat{
+  background:#0b0d0c;border:1px solid #252c27;border-radius:18px;
+}
+.schedule-item{
+  background:#0f1210;border:1px solid #252c27;border-left-width:5px;border-radius:16px;
+}
+.schedule-title,.selected-task-title,.wp-project-head,.wp-task-head{color:var(--text)}
+
+.board-title,.wp-title{font-size:24px;line-height:1;text-transform:uppercase;letter-spacing:0;font-weight:900}
+.board-content{gap:16px}
+.board-grid{border-color:#202620;border-radius:22px;overflow:hidden;background:#0b0d0c}
+.board-weekday{
+  background:#050605;border-color:#202620;color:#6f766f;text-transform:uppercase;
+}
+.board-day{
+  background:#080a09;border-color:#202620;min-height:132px;border-radius:0;
+}
+.board-day:hover{background:#10140f}
+.board-day.today{background:#11160e}
+.board-day.selected{box-shadow:inset 0 0 0 2px #f2f119;background:#12150f}
+.board-day.out-month{background:#050605;color:#4f554f}
+.board-day.today .board-day-number{background:#f2f119;color:#050605}
+.board-task{border-radius:12px;min-height:28px;padding:5px 7px;font-weight:800}
+.board-task.p1{background:#f365a9;color:#0b0307}
+.board-task.p2{background:#2f8cff;color:#02070d}
+.board-task.p3{background:#f2f119;color:#090903}
+.board-task.p4{background:#20e262;color:#031006}
+.board-task-actions{background:#111411;border:1px solid #303832}
+.board-mini-btn,.selected-task-action,.wp-progress-buttons button{
+  background:#171b18;color:#a8aea8;border-radius:999px;
+}
+.board-mini-btn:hover,.selected-task-action:hover,.wp-progress-buttons button.active{
+  background:#fff;color:#050605;
+}
+.board-side-count{
+  background:#20e262;color:#041006;border-radius:16px;
+}
+.board-side-count span{color:#041006}
+
+.wp-card{
+  background:#080a09;border:1px solid #242a26;border-radius:22px;padding:16px;
+}
+.wp-card:nth-child(4n+1){background:#20e262;color:#041006}
+.wp-card:nth-child(4n+2){background:#2f8cff;color:#02070d}
+.wp-card:nth-child(4n+3){background:#f365a9;color:#16050d}
+.wp-card:nth-child(4n+4){background:#f2f119;color:#111103}
+.wp-card:nth-child(4n+1) .wp-card-title,.wp-card:nth-child(4n+1) .wp-metric-value,.wp-card:nth-child(4n+1) .wp-metric-sub,.wp-card:nth-child(4n+1) .wp-note,
+.wp-card:nth-child(4n+2) .wp-card-title,.wp-card:nth-child(4n+2) .wp-metric-value,.wp-card:nth-child(4n+2) .wp-metric-sub,.wp-card:nth-child(4n+2) .wp-note,
+.wp-card:nth-child(4n+3) .wp-card-title,.wp-card:nth-child(4n+3) .wp-metric-value,.wp-card:nth-child(4n+3) .wp-metric-sub,.wp-card:nth-child(4n+3) .wp-note,
+.wp-card:nth-child(4n+4) .wp-card-title,.wp-card:nth-child(4n+4) .wp-metric-value,.wp-card:nth-child(4n+4) .wp-metric-sub,.wp-card:nth-child(4n+4) .wp-note{color:inherit}
+.wp-bar-track,.wp-progress{background:rgba(0,0,0,.25)}
+.wp-bar-fill,.wp-progress span{background:#050605}
+.wp-drawer,.conflict-dialog{
+  background:#050605;border:1px solid #252c27;color:var(--text);
+}
+.conflict-modal{background:rgba(0,0,0,.68);backdrop-filter:blur(8px)}
+
+@media (max-width:900px){
+  .header{margin-top:12px;padding:0 12px}
+  .header-copy{padding-left:88px}
+  .header-inner::before{width:160px;height:160px;left:-42px;top:-32px}
+  .header h1{font-size:22px}
+  .top-nav-btn{flex:1 1 auto}
+  .board-day{min-height:82px}
+  .input-panel,.extracted-panel,.priority-panel,.category-panel,.planner-actions,.preview-panel{width:100%}
+}
+@media (max-width:480px){
+  .header-inner{border-radius:26px;padding:18px}
+  .header-copy{padding-left:0;padding-top:112px}
+  .header-inner::before{left:12px;top:-32px}
+  .header h1{font-size:24px}
+  .panel{border-radius:24px}
+  .priority-grid{grid-template-columns:1fr 1fr}
+  .priority-btn{min-height:66px;font-size:12px;padding:12px}
+  .preview-field{display:block}
+  .preview-field .pf-value{text-align:left;margin-top:4px}
 }
 </style>
 </head>
@@ -615,9 +869,9 @@ input[type="color"]{
 <header class="header">
   <div class="header-inner">
     <div class="header-copy">
-      <h1>📅 个人智能日程规划助手</h1>
-      <p class="subtitle">把碎片任务变成站内月历看板</p>
-      <p class="tagline">输入一句任务，系统帮你判断是否完整、选择等级、分类项目，并加入自己的日历看板。</p>
+      <h1>Manage your day in one place</h1>
+      <p class="subtitle">个人智能日程规划助手</p>
+      <p class="tagline">输入一句任务，自动分析时间、优先级、项目归属，并沉淀成你的站内日历与工作画像。</p>
     </div>
     <div class="header-actions">
       <button class="top-nav-btn active" id="plannerNavBtn" onclick="setAppPage('planner')">任务规划</button>
@@ -1384,6 +1638,61 @@ function removeBoardTask(id) {
   renderCalendarBoard();
 }
 
+function confirmRemoveSelectedBoardTask(id) {
+  const task = loadBoardTasks().find(item => item.id === id);
+  if (!task) return;
+  if (!confirm(`确定删除「${task.title || '未命名任务'}」吗？`)) return;
+  removeBoardTask(id);
+}
+
+function isValidDateISO(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+  const date = new Date(`${value}T00:00:00`);
+  return !isNaN(date.getTime()) && toDateISO(date) === value;
+}
+
+async function promptBoardTaskDateChange(id) {
+  const tasks = loadBoardTasks();
+  const task = tasks.find(item => item.id === id);
+  if (!task) return;
+
+  const nextDate = prompt('新的日期（YYYY-MM-DD）', task.dateISO || selectedBoardDateISO);
+  if (nextDate === null || nextDate.trim() === '') return;
+  const dateISO = nextDate.trim();
+  if (!isValidDateISO(dateISO)) {
+    alert('日期格式不正确，请使用 YYYY-MM-DD，例如 2026-06-11');
+    return;
+  }
+  if (dateISO === task.dateISO) return;
+
+  const previousDateISO = task.dateISO;
+  Object.assign(task, {
+    dateISO,
+    status: Number(task.completionPercentage || 0) >= 100
+      ? 'completed'
+      : (Number(task.completionPercentage || 0) > 0 ? 'in_progress' : 'planned'),
+    originalScheduledStart: task.originalScheduledStart || `${previousDateISO || ''}T${task.startTime || ''}`,
+    originalScheduledEnd: task.originalScheduledEnd || `${previousDateISO || ''}T${task.endTime || ''}`,
+    rescheduleCount: Number(task.rescheduleCount || 0) + 1,
+  });
+
+  const sortedTasks = tasks
+    .map(normalizeBoardTask)
+    .sort((a, b) => (a.dateISO + a.startTime).localeCompare(b.dateISO + b.startTime));
+  saveBoardTasks(sortedTasks);
+  selectedBoardDateISO = dateISO;
+  boardMonthDate = new Date(`${dateISO}T00:00:00`);
+  await logTaskEvent('task_rescheduled', {
+    taskId: task.id,
+    title: task.title,
+    start: `${dateISO}T${task.startTime || ''}`,
+    end: task.endTime ? `${dateISO}T${task.endTime}` : '',
+    payload: { type: 'manual_date_change', previousDateISO, dateISO },
+  });
+  renderCalendarBoard();
+  if (window.location.hash === '#work-profile') renderWorkProfile();
+}
+
 async function toggleBoardTask(id) {
   const tasks = loadBoardTasks();
   const task = tasks.find(item => item.id === id);
@@ -1545,7 +1854,13 @@ function renderSelectedBoardTasks(tasks = loadBoardTasks()) {
     <div class="selected-task ${task.done ? 'done' : ''}">
       <button class="task-check ${task.done ? 'done' : ''}" onclick="toggleBoardTask('${task.id}')" aria-label="${task.done ? '恢复任务' : '完成任务'}">${task.done ? '✓' : ''}</button>
       <div class="selected-task-info">
-        <div class="selected-task-title">${escapeHtml(task.title)}</div>
+        <div class="selected-task-head">
+          <div class="selected-task-title">${escapeHtml(task.title)}</div>
+          <div class="selected-task-actions">
+            <button class="selected-task-action" onclick="event.stopPropagation();promptBoardTaskDateChange('${task.id}')">改日期</button>
+            <button class="selected-task-action danger" onclick="event.stopPropagation();confirmRemoveSelectedBoardTask('${task.id}')">删除</button>
+          </div>
+        </div>
         <div class="selected-task-detail">${escapeHtml(getTaskBrief(task))} · ${task.completionPercentage}% · ${escapeHtml(task.statusLabel || task.status)}</div>
         <div class="wp-progress-buttons">
           ${[0,25,50,75,100].map(p => `<button class="${task.completionPercentage === p ? 'active' : ''}" onclick="event.stopPropagation();updateBoardTaskProgress('${task.id}', ${p})">${p}%</button>`).join('')}
