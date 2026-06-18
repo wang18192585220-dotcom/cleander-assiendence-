@@ -63,6 +63,10 @@ body{
 .top-nav-btn.active{border-color:var(--blue);background:var(--blue);color:#fff}
 .app-view[hidden]{display:none}
 
+/* Module indicator bar under header */
+body[data-page="board"] .header{border-bottom:3px solid var(--blue)}
+body[data-page="work-profile"] .header{border-bottom:3px solid var(--green)}
+
 /* ===== Layout ===== */
 .container{
   max-width:1200px;margin:0 auto;padding:24px 20px 40px;
@@ -573,7 +577,7 @@ input[type="color"]{
   .header{padding:16px 20px}
   .header-inner{align-items:flex-start;flex-direction:column}
   .header-actions{width:100%;justify-content:flex-start;gap:6px}
-  .top-nav-btn{flex:1 1 calc(50% - 6px);text-align:center;padding:8px 10px;font-size:12px}
+  .top-nav-btn{flex:1 1 auto;text-align:center;padding:8px 10px;font-size:12px}
   .header h1{font-size:18px}
   .priority-grid{grid-template-columns:1fr 1fr}
   .board-shell{padding:0 16px 28px}
@@ -586,7 +590,10 @@ input[type="color"]{
   .board-day{min-width:0;min-height:76px;padding:6px;gap:4px}
   .board-day-head{font-size:12px}
   .board-day.today .board-day-number{min-width:22px;height:22px;padding:0 6px}
-  .board-task{display:none}
+  .board-task{padding:3px 5px;min-height:0;gap:2px;border-radius:6px;font-size:0}
+  .board-task .task-check{width:8px;height:8px;min-width:8px;border-radius:3px}
+  .board-task-time{display:none}
+  .board-task-title{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .board-day-count{display:inline-flex}
   .upload-actions{width:100%;margin-left:0}
   .upload-actions button{flex:1 1 140px}
@@ -599,6 +606,9 @@ input[type="color"]{
 @media (max-width:480px){
   body{font-size:14px}
   .header{padding:14px 12px}
+  .header .tagline{display:none}
+  .top-nav-btn{padding:10px 8px;font-size:12px;border-radius:10px}
+  .top-nav-btn.active{box-shadow:0 0 12px rgba(47,140,255,.45)}
   .container{padding:12px 10px 28px}
   .panel{border-radius:12px}
   .panel-header{padding:14px;align-items:flex-start;flex-wrap:wrap}
@@ -855,6 +865,9 @@ input[type="color"]{border-color:#2b322d;background:#0a0c0b;border-radius:14px}
   .header-copy{padding-left:0;padding-top:112px}
   .header-inner::before{left:12px;top:-32px}
   .header h1{font-size:24px}
+  .header .tagline{display:none}
+  .top-nav-btn{padding:10px 8px;font-size:12px;border-radius:10px}
+  .top-nav-btn.active{box-shadow:0 0 12px rgba(47,140,255,.55)}
   .panel{border-radius:24px}
   .priority-grid{grid-template-columns:1fr 1fr}
   .priority-btn{min-height:66px;font-size:12px;padding:12px}
@@ -1087,7 +1100,6 @@ input[type="color"]{border-color:#2b322d;background:#0a0c0b;border-radius:14px}
       <span class="icon">🗓️</span>
       <span class="board-title" id="boardTitle">我的日历看板</span>
       <span class="spacer"></span>
-      <button class="board-action" onclick="setAppPage('planner')">返回任务规划</button>
       <button class="board-action" onclick="createQuickBoardTask()">＋</button>
       <button class="board-action" onclick="shiftBoardMonth(-1)">‹</button>
       <button class="board-action" onclick="goBoardToday()">Today</button>
@@ -1138,7 +1150,6 @@ input[type="color"]{border-color:#2b322d;background:#0a0c0b;border-radius:14px}
         <div class="wp-subtitle">了解你的时间、精力、任务成果和长期成长</div>
       </div>
       <span class="spacer"></span>
-      <button class="board-action" onclick="setAppPage('planner')">返回任务规划</button>
     </div>
     <div class="panel-body">
       <div class="wp-controls">
@@ -1283,6 +1294,7 @@ function setAppPage(page, options = {}) {
 
   if (nextPage === 'board') renderCalendarBoard();
   if (nextPage === 'work-profile') renderWorkProfile();
+  document.body.dataset.page = nextPage;
   if (!options.skipHash) {
     const hash = nextPage === 'board' ? '#board' : nextPage === 'work-profile' ? '#work-profile' : '#planner';
     if (window.location.hash !== hash) {
@@ -3406,7 +3418,7 @@ async function renderWorkProfile() {
   if (rangeEl) rangeEl.textContent = `${o.periodStart} 至 ${o.periodEnd} · 数据来自当前浏览器日历看板${profile.source === 'local' ? ' · 本地聚合' : ''}`;
   populateWorkProfileFilters(profile);
   if (!o.plannedTaskCount) {
-    content.innerHTML = `<div class="empty-state"><div class="emoji">📊</div><p>你的工作画像还没有形成<br>在日历中创建并完成任务后，这里会逐渐展示你的时间、精力和工作成果。</p><button class="calendar-btn" onclick="setAppPage('planner')" style="max-width:220px;margin:16px auto 0">前往创建任务</button></div>`;
+    content.innerHTML = `<div class="empty-state"><div class="emoji">📊</div><p>你的工作画像还没有形成<br>在日历中创建并完成任务后，这里会逐渐展示你的时间、精力和工作成果。</p><p style="color:var(--text-tertiary);font-size:12px;margin-top:12px">切换到「任务规划」页面即可添加新任务</p></div>`;
     return;
   }
   content.innerHTML = `<div class="wp-grid">
