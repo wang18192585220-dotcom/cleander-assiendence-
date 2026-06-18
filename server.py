@@ -18,6 +18,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import user_profile
 import work_profile
+import common
 
 HERMES_HOME = "/Users/wangshiyu/.hermes/profiles/energy-management"
 GAPI = os.path.join(HERMES_HOME, "skills/productivity/google-workspace/scripts/google_api.py")
@@ -109,85 +110,8 @@ def _db_conn():
 import hashlib
 _ANALYSIS_CACHE = {}  # {text_hash: (analysis_dict, timestamp)}
 
-ANALYZE_PROMPT = """你是一个智能日程规划助手，服务于一位大学生（王世宇）。你不仅解析任务，还会根据任务类型智能估算耗时并建议开始时间。
-
-用户背景：
-- 大学生，有时区 UTC+8
-- 常见任务类型及典型耗时参考：
-  - MKT62704 课程作业（Part A/B/C）：2-4小时/部分
-  - 论文写作：3-6小时
-  - TikTok 达人筛选/运营：1-2小时
-  - 课程预习/复习：1-2小时
-  - 考试复习：2-4小时
-  - 阅读文献/论文：1-2小时
-  - 小组讨论/会议：0.5-1小时
-  - 内容创作（小红书/TikTok）：1-2小时
-
-必须严格按照以下JSON格式返回（只返回JSON，不要任何前缀、后缀或markdown标记）：
-{"title":"精简标题","priority":"P1","priorityLabel":"紧急且重要","category":"学习","projectName":"建议项目名","dateISO":"2026-06-15","dateStr":"明天","startTime":"15:00","endTime":"17:00","durationMinutes":120,"durationStr":"2小时","location":"图书馆","reason":"分析理由","aiEstimatedDuration":120,"aiDurationReason":"该类型任务通常需要2小时","aiSuggestedStart":"建议周三下午开始，周四有课冲突"}
-
-新增字段说明（智能估算）：
-- aiEstimatedDuration: 根据任务类型和用户习惯估算的耗时（分钟），即使原文提到了时间也给出你的独立判断
-- aiDurationReason: 简短说明为什么估算这个时长（如"MKT作业通常需要3小时"）
-- aiSuggestedStart: 如果原文没有明确时间，给出一句话建议（如"建议今天下午开始，截止日期是周五"）
-
-规则：
-- 无法确定的字段填 null（不是字符串"null"）
-- 时间用24小时制 HH:MM
-- 中文数字时间要转换："九点半"→"09:30","下午三点"→"15:00"
-- 无上下文的"X点到Y点"默认下午（13:00-23:00）
-- "半小时"=30分钟，"两小时"=120分钟
-- "明天/后天/下周X"需推算具体日期填入dateISO
-- priority只返回P1/P2/P3/P4
-- category只返回：学习/工作/项目/生活/内容创作/会议/提醒
-- aiEstimatedDuration 必须是合理的数值，参考上面的典型耗时"""
-
-SCHEDULE_PROMPT = """你是一个智能排班助手。根据用户已有的日历事件和待安排的任务，为每个任务建议最佳时间。
-
-当前已有的日历事件（这些时间段已被占用）：
-{calendar_events}
-
-待安排的任务列表（需排入空闲时段）：
-{tasks_text}
-
-用户背景：大学生，时区 UTC+8。偏好早上9点后开始，晚上10点前结束。喜欢连续工作不碎片化。
-
-请为每个任务推荐一个最佳时间段。严格按以下JSON数组格式返回（只返回JSON数组）：
-[
-  {{"taskIndex":0,"title":"任务标题","suggestedDate":"2026-06-15","suggestedStart":"14:00","suggestedEnd":"16:30","durationMinutes":150,"reason":"周三下午空闲，放在周二作业之后"}},
-  ...
-]
-
-排班规则：
-- 优先安排 P1（紧急且重要）的任务
-- 同类型任务尽量连续安排（如学习类任务集中处理）
-- 避免在已有课程/会议前后安排高强度任务
-- 每个任务之间留30分钟缓冲
-- 如果一天排满了就推到下一天
-- 一个任务块不超过3小时，超过则拆分为多天
-- dateISO 必须是未来7天内的日期（今天是 {today}）
-- reason 字段简要说明为何选择这个时间段"""
-
-BATCH_EXTRACT_PROMPT = """你是一个日程规划助手。从以下文档/图片中提取所有独立的任务/事件/课程。
-
-文档内容：
-{text}
-
-请将每个独立的任务/事件/课程拆解出来，以JSON数组格式返回（只返回JSON数组，不要任何前缀、后缀或markdown标记）：
-[
-  {{"title":"精简标题","dateISO":"2026-06-19","dateStr":"周四","startTime":"09:00","endTime":"10:30","durationMinutes":90,"location":"教室A","category":"学习","projectName":"课程名称","reason":"周一第1节课"}},
-  {{"title":"另一个任务","dateISO":"2026-06-19","dateStr":"周四","startTime":"14:00","endTime":"16:00","durationMinutes":120,"location":null,"category":"工作"}}
-]
-
-规则：
-- 每个任务必须独立一行
-- 今天日期是 {today}，根据文档中的星期/日期推算出 dateISO
-- 如果只有星期没有具体日期（如"周四"），推算最近的下一个该星期几
-- 时间用24小时制 HH:MM
-- 无法确定的字段填 null
-- category只能是：学习/工作/项目/生活/内容创作/会议/提醒
-- 从课表中提取的课程 category 应为"学习"
-- 不要漏掉任何任务"""
+# Prompts now in common.py:
+# common.ANALYZE_PROMPT, common.SCHEDULE_PROMPT, common.BATCH_EXTRACT_PROMPT
 
 
 
@@ -270,7 +194,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 return
 
         if not DEEPSEEK_API_KEY:
-            result = self._keyword_analyze(text)
+            result = common.keyword_analyze(text)
             self._json_response(200, result)
             return
 
@@ -301,7 +225,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             print(f"[ANALYZE] API took {elapsed:.1f}s", flush=True)
 
             # Robust JSON extraction
-            analysis = self._extract_json(content)
+            analysis = common.extract_json(content)
 
             if analysis:
                 response_data = {"status": "ok", "analysis": analysis}
@@ -309,86 +233,17 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 self._json_response(200, response_data)
             else:
                 print(f"[ANALYZE] JSON extraction failed, raw: {content[:200]}", flush=True)
-                result = self._keyword_analyze(text)
+                result = common.keyword_analyze(text)
                 self._json_response(200, result)
 
         except Exception as e:
             print(f"[ANALYZE] Error: {e}", flush=True)
-            result = self._keyword_analyze(text)
+            result = common.keyword_analyze(text)
             self._json_response(200, result)
 
-    def _extract_json(self, content):
-        """Robust JSON extraction from LLM response — handles markdown, extra text, etc."""
-        import re
-        # Strategy 1: Remove ```json ... ``` blocks
-        md_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
-        if md_match:
-            content = md_match.group(1).strip()
+    # Now uses common.extract_json
 
-        # Strategy 2: Find the first { and matching }
-        start = content.find('{')
-        if start == -1:
-            return None
-        # Find matching brace
-        depth = 0
-        end = -1
-        for i in range(start, len(content)):
-            if content[i] == '{':
-                depth += 1
-            elif content[i] == '}':
-                depth -= 1
-                if depth == 0:
-                    end = i
-                    break
-        if end == -1:
-            return None
-
-        json_str = content[start:end+1]
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            # Strategy 3: Fix common issues
-            # - Fix Python None → null
-            json_str = json_str.replace(': None', ': null').replace(': True', ': true').replace(': False', ': false')
-            # - Fix unquoted null
-            json_str = re.sub(r':\s*null(?!\s*[,}\]])', ': null', json_str)
-            try:
-                return json.loads(json_str)
-            except json.JSONDecodeError:
-                pass
-        return None
-
-    def _keyword_analyze(self, text):
-        """Keyword-based fallback analysis."""
-        cat_keywords = {
-            "学习": ["学习", "作业", "课程", "考试", "阅读", "复习", "论文", "课题", "笔记", "预习", "听课", "上课"],
-            "工作": ["工作", "实习", "客户", "达人", "运营", "筛选", "面试", "简历", "求职", "报告", "汇报", "数据"],
-            "项目": ["项目", "创业", "自媒体", "网站", "开发", "上线", "产品", "方案"],
-            "生活": ["签证", "购物", "出行", "旅游", "搬家", "打扫", "做饭", "买菜", "账单", "房租"],
-            "内容创作": ["小红书", "抖音", "TikTok", "视频", "脚本", "内容创作", "剪辑", "拍摄", "发布", "公众号"],
-            "会议": ["会议", "开会", "沟通", "讨论", "面谈", "小组", "约谈", "同步"],
-            "提醒": ["提醒", "记得", "别忘了", "备忘", "不要忘"],
-        }
-        matched_cat = ""
-        max_score = 0
-        for cat, keywords in cat_keywords.items():
-            score = sum(1 for kw in keywords if kw in text)
-            if score > max_score:
-                max_score = score
-                matched_cat = cat
-
-        return {
-            "status": "ok",
-            "source": "keyword",
-            "analysis": {
-                "title": text[:40],
-                "priority": "P2",
-                "priorityLabel": "重要但不紧急",
-                "category": matched_cat or "工作",
-                "projectName": matched_cat + "相关任务" if matched_cat else "待分类",
-                "reason": "关键词匹配（离线模式）"
-            }
-        }
+    # Now uses common.keyword_analyze
 
     def _handle_calendar(self, data):
         summary = data.get("summary", "").strip()
@@ -436,117 +291,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self._json_response(500, {"status": "error", "message": str(e)})
 
-    def _parse_board_minutes(self, value):
-        """Convert HH:MM to minutes after midnight."""
-        if not value or not isinstance(value, str):
-            return None
-        match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
-        if not match:
-            return None
-        hour, minute = int(match.group(1)), int(match.group(2))
-        if hour < 0 or hour > 23 or minute < 0 or minute > 59:
-            return None
-        return hour * 60 + minute
-
-    def _format_board_minutes(self, minutes):
-        return f"{minutes // 60:02d}:{minutes % 60:02d}"
-
-    def _normalize_board_task_window(self, task):
-        """Return (dateISO, start_minute, end_minute, message)."""
-        date_iso = task.get("dateISO") or task.get("date")
-        start = self._parse_board_minutes(task.get("startTime") or task.get("start"))
-        end = self._parse_board_minutes(task.get("endTime") or task.get("end"))
-        duration = task.get("durationMinutes")
-
-        if start is not None and end is None and duration:
-            try:
-                end = start + int(duration)
-            except (TypeError, ValueError):
-                end = None
-
-        if not date_iso:
-            return None, None, None, "任务缺少日期，无法检测冲突"
-        if start is None:
-            return date_iso, None, None, "任务缺少开始时间，无法检测冲突"
-        if end is None:
-            return date_iso, start, None, "任务缺少结束时间或预计用时，无法检测冲突"
-        if end <= start:
-            return date_iso, start, end, "任务结束时间必须晚于开始时间"
-
-        return date_iso, start, end, ""
-
-    def _find_board_recommendations(self, task, existing_tasks, days=7):
-        date_iso, start, end, message = self._normalize_board_task_window(task)
-        if message:
-            return []
-
-        duration = end - start
-        try:
-            base_day = datetime.strptime(date_iso[:10], "%Y-%m-%d")
-        except ValueError:
-            return []
-
-        recommendations = []
-        work_start = 9 * 60
-        work_end = 22 * 60
-
-        for offset in range(max(1, min(days, 14))):
-            day = base_day + timedelta(days=offset)
-            day_iso = day.strftime("%Y-%m-%d")
-            occupied = []
-
-            for existing in existing_tasks:
-                ex_date, ex_start, ex_end, ex_message = self._normalize_board_task_window(existing)
-                if ex_message or ex_date != day_iso:
-                    continue
-                occupied.append((max(work_start, ex_start), min(work_end, ex_end), existing))
-
-            occupied.sort(key=lambda item: item[0])
-            merged = []
-            for occ_start, occ_end, existing in occupied:
-                if occ_end <= work_start or occ_start >= work_end:
-                    continue
-                if not merged or occ_start > merged[-1][1]:
-                    merged.append([occ_start, occ_end, [existing]])
-                else:
-                    merged[-1][1] = max(merged[-1][1], occ_end)
-                    merged[-1][2].append(existing)
-
-            cursor = work_start
-            gaps = []
-            for occ_start, occ_end, _items in merged:
-                if cursor + duration <= occ_start:
-                    gaps.append((cursor, occ_start))
-                cursor = max(cursor, occ_end)
-            if cursor + duration <= work_end:
-                gaps.append((cursor, work_end))
-
-            for gap_start, gap_end in gaps:
-                suggested_start = max(gap_start, start) if offset == 0 and start >= gap_start and start + duration <= gap_end else gap_start
-                suggested_end = suggested_start + duration
-                if suggested_end > gap_end:
-                    continue
-
-                if not occupied:
-                    reason = f"这一天看板没有其他任务，{self._format_board_minutes(suggested_start)}-{self._format_board_minutes(suggested_end)} 满足 {duration} 分钟连续时长"
-                else:
-                    avoided = "、".join(
-                        f"{self._format_board_minutes(s)}-{self._format_board_minutes(e)}"
-                        for s, e, _ in merged[:3]
-                    )
-                    reason = f"避开了已有任务时段 {avoided}，并保留 {duration} 分钟连续空闲"
-
-                recommendations.append({
-                    "dateISO": day_iso,
-                    "startTime": self._format_board_minutes(suggested_start),
-                    "endTime": self._format_board_minutes(suggested_end),
-                    "durationMinutes": duration,
-                    "reason": reason,
-                })
-                if len(recommendations) >= 3:
-                    return recommendations
-
-        return recommendations
+    # _normalize_board_task_window → common.normalize_board_task_window
+    # _find_board_recommendations → common.find_board_recommendations
 
     def _handle_board_conflicts(self, data):
         """POST /api/board/conflicts — detect local board task overlaps."""
@@ -554,7 +300,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
         existing_tasks = data.get("existingTasks") or []
         days = data.get("days", 7)
 
-        date_iso, start, end, message = self._normalize_board_task_window(task)
+        date_iso, start, end, message = common.normalize_board_task_window(task)
         if message:
             self._json_response(400, {
                 "status": "error",
@@ -567,7 +313,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
         conflicts = []
         for existing in existing_tasks:
-            ex_date, ex_start, ex_end, ex_message = self._normalize_board_task_window(existing)
+            ex_date, ex_start, ex_end, ex_message = common.normalize_board_task_window(existing)
             if ex_message or ex_date != date_iso:
                 continue
             if start < ex_end and end > ex_start:
@@ -575,11 +321,11 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     "id": existing.get("id", ""),
                     "title": existing.get("title", "未命名任务"),
                     "dateISO": ex_date,
-                    "startTime": self._format_board_minutes(ex_start),
-                    "endTime": self._format_board_minutes(ex_end),
+                    "startTime": common.format_board_minutes(ex_start),
+                    "endTime": common.format_board_minutes(ex_end),
                 })
 
-        recommendations = self._find_board_recommendations(task, existing_tasks, days)
+        recommendations = common.find_board_recommendations(task, existing_tasks, days)
         self._json_response(200, {
             "status": "ok",
             "hasConflict": bool(conflicts),
@@ -653,7 +399,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             resp = urllib.request.urlopen(req, timeout=25)
             result = json.loads(resp.read())
             content = result["choices"][0]["message"]["content"].strip()
-            summary = work_profile.validate_summary(self._extract_json(content))
+            summary = work_profile.validate_summary(common.extract_json(content))
             if not summary:
                 summary = fallback
                 source = "rule_fallback"
@@ -823,7 +569,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
         # For short texts: single pass with full content
         if len(text) <= 8000:
-            prompt = BATCH_EXTRACT_PROMPT.format(text=text, today=today)
+            prompt = common.BATCH_EXTRACT_PROMPT.format(text=text, today=today)
             return self._call_deepseek_batch(prompt)
 
         # For long texts: chunk by sections, merge results
@@ -832,7 +578,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
         chunks = self._chunk_text(text, 6000)
 
         for i, chunk in enumerate(chunks):
-            chunk_prompt = BATCH_EXTRACT_PROMPT.format(
+            chunk_prompt = common.BATCH_EXTRACT_PROMPT.format(
                 text=f"(第 {i+1}/{len(chunks)} 部分)\n\n{chunk}",
                 today=today
             )
@@ -900,7 +646,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             content = result["choices"][0]["message"]["content"].strip()
             print(f"[UPLOAD] AI took {elapsed:.1f}s, response {len(content)} chars", flush=True)
 
-            tasks = self._extract_json_array(content)
+            tasks = common.extract_json_array(content)
             if not tasks:
                 # Diagnostic: log raw response when extraction fails
                 print(f"[UPLOAD] JSON extraction failed! Raw preview: {content[:300]}", flush=True)
@@ -910,41 +656,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             print(f"[UPLOAD] AI error: {e}", flush=True)
             return []
 
-    def _extract_json_array(self, content):
-        """Robust JSON array extraction from LLM response."""
-        # Strategy 1: Remove markdown blocks
-        md_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
-        if md_match:
-            content = md_match.group(1).strip()
-
-        # Strategy 2: Find the first [ and matching ]
-        start = content.find('[')
-        if start == -1:
-            return []
-        depth = 0
-        end = -1
-        for i in range(start, len(content)):
-            if content[i] == '[':
-                depth += 1
-            elif content[i] == ']':
-                depth -= 1
-                if depth == 0:
-                    end = i
-                    break
-        if end == -1:
-            return []
-
-        json_str = content[start:end+1]
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            # Try fixing common issues
-            json_str = json_str.replace(': None', ': null').replace(': True', ': true').replace(': False', ': false')
-            try:
-                return json.loads(json_str)
-            except json.JSONDecodeError:
-                pass
-        return []
+    # _extract_json_array → common.extract_json_array
 
     # ==================== NEW: Calendar Read ====================
     def _handle_calendar_read(self):
@@ -1151,7 +863,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             elapsed = time.time() - t0
             print(f"[SCHEDULE] AI took {elapsed:.1f}s", flush=True)
 
-            schedule = self._extract_json_array(content)
+            schedule = common.extract_json_array(content)
             print(f"[SCHEDULE] AI suggested {len(schedule)} time slots", flush=True)
 
             self._json_response(200, {
@@ -1287,14 +999,16 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     # ==================== Profile-Injected Prompts ====================
     def _build_analyze_prompt(self):
-        """Build ANALYZE_PROMPT with user profile injected."""
+        """Build ANALYZE_PROMPT with today's date and user profile injected."""
+        today = time.strftime("%Y-%m-%d")
+        prompt = common.ANALYZE_PROMPT.replace('__TODAY__', today)
         profile_text = user_profile.build_profile_summary(DB_PATH, 30)
-        return user_profile.inject_profile_into_prompt(ANALYZE_PROMPT, profile_text)
+        return user_profile.inject_profile_into_prompt(prompt, profile_text)
 
     def _build_schedule_prompt(self, calendar_events, tasks_text):
         """Build SCHEDULE_PROMPT with user profile injected."""
         today = time.strftime("%Y-%m-%d")
-        base_prompt = SCHEDULE_PROMPT.format(
+        base_prompt = common.SCHEDULE_PROMPT.format(
             calendar_events=calendar_events,
             tasks_text=tasks_text,
             today=today,

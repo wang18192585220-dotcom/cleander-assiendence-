@@ -1931,6 +1931,29 @@ function parseTask(text) {
     { regex: /今天/, fn: () => { const d=new Date(); return { date: d, str: '今天 (' + formatDateShort(d) + ')' }; } },
     { regex: /明天/, fn: () => { const d=new Date(); d.setDate(d.getDate()+1); return { date: d, str: '明天 (' + formatDateShort(d) + ')' }; } },
     { regex: /后天/, fn: () => { const d=new Date(); d.setDate(d.getDate()+2); return { date: d, str: '后天 (' + formatDateShort(d) + ')' }; } },
+    // "下周三" / "下星期X" — next week's day X
+    { regex: /(下周|下星期)([一二三四五六日天])/,
+      fn: (m) => {
+        const map={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
+        const target=map[m[2]]; const d=new Date();
+        const today=d.getDay(); let diff=target-today;
+        if(diff<=0) diff+=7;
+        d.setDate(d.getDate()+diff+7); // jump to next week
+        return { date: d, str: '下周' + m[2] + ' (' + formatDateShort(d) + ')' };
+      }
+    },
+    // "这周三" / "这星期X" — this week's day X
+    { regex: /(这周|这星期)([一二三四五六日天])/,
+      fn: (m) => {
+        const map={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
+        const target=map[m[2]]; const d=new Date();
+        const today=d.getDay(); let diff=target-today;
+        if(diff<0) diff+=7; // this week: if past, fall to next (shouldn't happen)
+        d.setDate(d.getDate()+diff);
+        return { date: d, str: '这周' + m[2] + ' (' + formatDateShort(d) + ')' };
+      }
+    },
+    // "周三" / "星期X" — next occurrence of weekday X
     { regex: /(周|星期)([一二三四五六日天])/,
       fn: (m) => {
         const map={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
@@ -2254,9 +2277,14 @@ async function analyzeTask(silent = false) {
       // Merge AI temporal fields — AI 可以理解中文数字时间（如"九点半"、"下周三上午"）
       if (!parsed.date && ai.dateISO) {
         const d = new Date(ai.dateISO + 'T00:00:00');
-        if (!isNaN(d.getTime())) {
+        // 校验：日期不能是 30 天前的过去日期，也不能超过 2 年后
+        const today = new Date(); today.setHours(0,0,0,0);
+        const daysDiff = Math.round((d - today) / 86400000);
+        if (!isNaN(d.getTime()) && daysDiff >= -30 && daysDiff <= 730) {
           parsed.date = d;
           parsed.dateStr = ai.dateStr || ai.dateISO;
+        } else {
+          console.warn(`[ANALYZE] AI returned unreasonable dateISO: ${ai.dateISO} (${daysDiff} days from today), ignoring`);
         }
       }
       if (!parsed.startTime && ai.startTime) {
